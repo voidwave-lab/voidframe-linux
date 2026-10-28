@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ==============================================================================
+# Voidframe Wayland Micro-Compositor Kiosk Session (/etc/lemurs/wayland/tuios-session)
+# ==============================================================================
+# Executed by Lemurs upon PAM authentication on tty2.
+# Launches Cage (Wayland kiosk compositor) -> fullscreen Foot -> TUIOS.
+# ==============================================================================
+
+export XDG_SESSION_TYPE="wayland"
+export XDG_SESSION_DESKTOP="voidframe"
+export XDG_CURRENT_DESKTOP="voidframe"
+export COLORTERM="truecolor"
+export EDITOR="${EDITOR:-nvim}"
+export VISUAL="${VISUAL:-nvim}"
+
+# Ensure XDG_RUNTIME_DIR is set (provided by pam_systemd)
+if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+
+# Start PipeWire / WirePlumber user services if systemd user instance is active
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
+fi
+
+# Launch Cage Wayland kiosk running fullscreen GPU-accelerated Foot directly into TUIOS
+exec cage -s -- foot --config=/etc/xdg/foot/foot.ini -e tuios

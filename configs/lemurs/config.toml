@@ -1,0 +1,82 @@
+# ==============================================================================
+# Voidframe Lemurs TUI Display & Login Manager Configuration
+# ==============================================================================
+
+tty = 2
+
+main_log_path = "/var/log/lemurs.log"
+client_log_path = "/var/log/lemurs.client.log"
+do_log = true
+
+cache_path = "/var/cache/lemurs"
+pam_service = "lemurs"
+
+system_shell = "/bin/bash"
+initial_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Power management actions
+power_controls = [
+    { name = "Shutdown", cmd = "systemctl poweroff -i", key = "F1", color = "light red", hint_color = "dark gray" },
+    { name = "Reboot", cmd = "systemctl reboot -i", key = "F2", color = "light cyan", hint_color = "dark gray" },
+    { name = "Suspend", cmd = "systemctl suspend -i", key = "F3", color = "light magenta", hint_color = "dark gray" },
+]
+
+[background]
+show_background = true
+
+[background.style]
+color = "black"
+show_border = true
+border_color = "cyan"
+
+[switcher]
+switcher_visibility = "visible"
+toggle_key = "F12"
+remember = true
+base_color = "dark gray"
+focused_color = "light cyan"
+selected_color = "magenta"
+show_movers = true
+mover_color = "dark gray"
+focused_mover_color = "cyan"
+
+[username_field]
+remember = true
+
+[username_field.style]
+show_title = true
+title = "Operator"
+title_color = "cyan"
+content_color = "white"
+focused_title_color = "light cyan"
+focused_content_color = "white"
+show_border = true
+border_color = "dark gray"
+focused_border_color = "cyan"
+use_max_width = true
+max_width = 48
+
+[password_field]
+content_replacement_character = "*"
+
+[password_field.style]
+show_title = true
+title = "Passphrase"
+title_color = "magenta"
+content_color = "light cyan"
+focused_title_color = "light magenta"
+focused_content_color = "light cyan"
+show_border = true
+border_color = "dark gray"
+focused_border_color = "magenta"
+use_max_width = true
+max_width = 48
+
+[wayland]
+wayland_sessions_path = "/etc/lemurs/wayland"
+
+[x11]
+x11_sessions_path = "/etc/lemurs/wms"
+xserver_path = "/usr/bin/X"
+xauth_path = "/usr/bin/xauth"
+xserver_timeout_secs = 5

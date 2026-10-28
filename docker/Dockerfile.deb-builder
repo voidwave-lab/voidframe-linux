@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1
+# ==============================================================================
+# Voidframe Debian Trixie .deb Packaging Builder (Rust Ratatui + Go TUIOS)
+# ==============================================================================
+
+ARG DEBIAN_RELEASE=trixie
+FROM debian:${DEBIAN_RELEASE} AS toolchain-base
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG RUST_VERSION=1.85.0
+ARG GO_VERSION=1.24.0
+ARG TARGETARCH
+
+# Install core build dependencies and C development headers for PAM, PipeWire, D-Bus
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    clang \
+    cmake \
+    curl \
+    dpkg-dev \
+    fakeroot \
+    file \
+    git \
+    libclang-dev \
+    libdbus-1-dev \
+    libpam0g-dev \
+    libpipewire-0.3-dev \
+    libssl-dev \
+    libxcb1-dev \
+    libxcb-render0-dev \
+    libxcb-shape0-dev \
+    libxcb-xfixes0-dev \
+    lintian \
+    mold \
+    pkg-config \
+     python3 \
+    unzip \
+    xz-utils \
+    zstd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go toolchain
+ENV GOROOT=/usr/local/go
+ENV GOPATH=/go
+ENV PATH="${GOROOT}/bin:${GOPATH}/bin:/root/.cargo/bin:${PATH}"
+
+RUN set -eux; \
+    ARCH="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" -o /tmp/go.tar.gz; \
+    tar -C /usr/local -xzf /tmp/go.tar.gz; \
+    rm -f /tmp/go.tar.gz; \
+    go version
+
+# Install Rust toolchain + cargo-binstall + cargo-deb
+FROM toolchain-base AS builder
+
+RUN set -eux; \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+        sh -s -- -y --default-toolchain "${RUST_VERSION}" --profile minimal; \
+    curl -L --proto '=https' --tlsv1.2 -sSf \
+        https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash; \
+    cargo-binstall -y cargo-deb || cargo install cargo-deb --locked; \
+    rustc --version; \
+    cargo --version
+
+# Release profile optimizations for all Rust builds
+ENV CARGO_PROFILE_RELEASE_LTO=thin \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    CARGO_PROFILE_RELEASE_STRIP=symbols \
+    CARGO_PROFILE_RELEASE_OPT_LEVEL=3 \
+    CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+WORKDIR /build
+COPY config.mk /build/config.mk
+COPY docker/build-packages.sh /usr/local/bin/build-packages.sh
+RUN chmod +x /usr/local/bin/build-packages.sh
+
+VOLUME ["/dist/debs"]
+ENTRYPOINT ["/usr/local/bin/build-packages.sh"]

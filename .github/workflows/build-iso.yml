@@ -1,0 +1,109 @@
+name: Build Patched Debian Trixie Netinst ISO
+
+on:
+  workflow_dispatch:
+    inputs:
+      distro_name:
+        description: "Distro name override (default from config.mk: voidframe)"
+        required: false
+        default: "voidframe"
+        type: string
+      publish_release:
+        description: "Publish hybrid ISO images to a GitHub Release"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Release tag name (used when publish_release is true)"
+        required: false
+        default: "v0.1.0"
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # Invoke the .deb build pipeline so the ISO always embeds fresh, verified packages
+  build-packages:
+    uses: ./.github/workflows/build-debs.yml
+    permissions:
+      contents: write
+
+  patch-iso:
+    name: Patch Debian Trixie ISO (${{ matrix.arch }})
+    needs: build-packages
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ISO tooling (xorriso)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xorriso curl ca-certificates jq
+
+      - name: Download built .deb artifacts (${{ matrix.arch }})
+        uses: actions/download-artifact@v4
+        with:
+          name: debs-${{ matrix.arch }}
+          path: dist/debs/${{ matrix.arch }}
+
+      - name: Lint setup and ISO scripts
+        run: make lint
+
+      - name: Build patched hybrid Debian Trixie ISO (${{ matrix.arch }})
+        run: |
+          chmod +x iso/patch-netinst.sh setup/*.sh
+          make patch-iso \
+            ARCH="${{ matrix.arch }}" \
+            DISTRO_NAME="${{ inputs.distro_name || 'voidframe' }}"
+
+      - name: Verify ISO El Torito / Hybrid Boot Structure
+        run: |
+          for iso in dist/iso/*-"${{ matrix.arch }}"-netinst.iso; do
+            echo "=== Inspecting boot catalog of ${iso} ==="
+            xorriso -indev "${iso}" -report_el_torito plain -report_system_area plain
+          done
+
+      - name: Upload ISO artifact (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: iso-${{ matrix.arch }}
+          path: |
+            dist/iso/*-${{ matrix.arch }}-netinst.iso
+            dist/iso/*-${{ matrix.arch }}-netinst.iso.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  release-iso:
+    name: Publish Hybrid ISOs to GitHub Release
+    needs: patch-iso
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all ISO artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-isos
+          pattern: iso-*
+          merge-multiple: true
+
+      - name: Publish ISOs to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
+          name: "Voidframe ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}"
+          generate_release_notes: true
+          files: |
+            release-isos/*.iso
+            release-isos/*.sha256

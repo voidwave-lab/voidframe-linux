@@ -1,0 +1,11 @@
+# Build & ISO Output Artifacts
+/dist/
+*.iso
+*.iso.sha256
+*.deb
+*.qcow2
+
+# OS & Editor Metadata
+.DS_Store
+*.swp
+*~

@@ -1,0 +1,101 @@
+# ==============================================================================
+# Voidframe Bottom System Monitor Configuration (~/.config/bottom/bottom.toml)
+# ==============================================================================
+
+[flags]
+hide_avg_cpu = false
+dot_marker = false
+temperature_type = "c"
+rate = "500ms"
+left_legend = false
+current_usage = true
+unnormalized_cpu = false
+group_processes = true
+case_sensitive = false
+whole_word = false
+regex = false
+basic = false
+default_time_value = "60s"
+time_delta = "15s"
+autohide_time = false
+hide_time = false
+default_widget_type = "proc"
+default_widget_count = 1
+expanded = false
+use_old_network_legend = false
+hide_table_gap = false
+battery = true
+disable_click = false
+enable_gpu = true
+enable_cache_memory = true
+network_use_bytes = true
+network_use_log = false
+network_use_binary_prefix = true
+
+[processes]
+columns = ["PID", "Name", "CPU%", "Mem%", "R/s", "W/s", "User", "State"]
+
+# Layout: CPU + Mem/Disk on top, Network + Processes on bottom
+[[row]]
+  ratio = 35
+  [[row.child]]
+    ratio = 55
+    type = "cpu"
+  [[row.child]]
+    ratio = 45
+    [[row.child.child]]
+      type = "mem"
+    [[row.child.child]]
+      type = "temp"
+
+[[row]]
+  ratio = 65
+  [[row.child]]
+    ratio = 35
+    [[row.child.child]]
+      type = "net"
+    [[row.child.child]]
+      type = "disk"
+  [[row.child]]
+    ratio = 65
+    type = "proc"
+    default = true
+
+# Voidframe Obsidian High-Contrast Theme
+[styles.tables]
+headers = { color = "#00e5ff", bold = true }
+
+[styles.graphs]
+graph_color = "#00e5ff"
+legend_text = { color = "#c0caf5" }
+
+[styles.widgets]
+border_color = "#282e3d"
+selected_border_color = "#00e5ff"
+widget_title = { color = "#00e5ff", bold = true }
+text = { color = "#e6edf3" }
+selected_text = { color = "#0d0f14", bg_color = "#00e5ff", bold = true }
+disabled_text = { color = "#414868" }
+
+[styles.cpu]
+all_entry_color = "#00e5ff"
+avg_entry_color = "#9d7cd8"
+cpu_core_colors = ["#00e5ff", "#9d7cd8", "#73daca", "#7aa2f7", "#e0af68", "#f7768e"]
+
+[styles.memory]
+ram_color = "#00e5ff"
+cache_color = "#7aa2f7"
+swap_color = "#9d7cd8"
+arc_color = "#73daca"
+gpu_colors = ["#9d7cd8", "#00e5ff", "#73daca", "#e0af68"]
+
+[styles.network]
+rx_color = "#00e5ff"
+tx_color = "#9d7cd8"
+rx_total_color = "#73daca"
+tx_total_color = "#e0af68"
+
+[styles.battery]
+high_battery_color = "#73daca"
+medium_battery_color = "#e0af68"
+low_battery_color = "#f7768e"

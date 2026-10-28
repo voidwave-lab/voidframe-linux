@@ -1,0 +1,110 @@
+# ==============================================================================
+# Voidframe TUIOS Configuration (~/.config/tuios/config.toml)
+# ==============================================================================
+# Terminal-Based Operating System & Multiplexer (https://github.com/Gaurav-Gosain/tuios)
+# Configured with Voidframe Obsidian theme and dedicated keybindings for the
+# Ratatui system suite.
+
+[general]
+shell = "/bin/bash"
+leader_key = "ctrl+b"
+mouse_support = true
+focus_follows_mouse = false
+default_layout = "tiling"
+workspaces = 9
+confirm_quit = true
+
+[appearance]
+theme = "custom"
+border_style = "rounded"
+status_bar = true
+status_bar_position = "top"
+window_padding = 0
+show_clock = true
+show_workspace_indicator = true
+
+[appearance.colors]
+background = "#0d0f14"
+surface = "#151922"
+foreground = "#e6edf3"
+muted = "#6e7681"
+accent_primary = "#00e5ff"
+accent_secondary = "#9d7cd8"
+border_active = "#00e5ff"
+border_inactive = "#282e3d"
+status_bg = "#151922"
+status_fg = "#e6edf3"
+urgent = "#f7768e"
+warning = "#e0af68"
+success = "#73daca"
+
+# ==============================================================================
+# Core Window & Workspace Keybindings (Window Management Mode / Leader)
+# ==============================================================================
+[keybindings]
+toggle_mode = ["ctrl+b", "esc"]
+new_window = ["n", "enter"]
+close_window = ["w", "x"]
+rename_window = ["r"]
+minimize_window = ["m"]
+restore_all = ["M"]
+toggle_fullscreen = ["z"]
+toggle_tiling = ["t"]
+snap_left = ["h"]
+snap_right = ["l"]
+snap_top = ["k"]
+snap_bottom = ["j"]
+snap_fullscreen = ["f"]
+next_window = ["tab"]
+prev_window = ["shift+tab"]
+show_help = ["?"]
+quit = ["q"]
+
+# Workspace Switching (Alt+1..9)
+[keybindings.workspaces]
+switch_1 = "alt+1"
+switch_2 = "alt+2"
+switch_3 = "alt+3"
+switch_4 = "alt+4"
+switch_5 = "alt+5"
+switch_6 = "alt+6"
+switch_7 = "alt+7"
+switch_8 = "alt+8"
+switch_9 = "alt+9"
+move_to_1 = "alt+shift+1"
+move_to_2 = "alt+shift+2"
+move_to_3 = "alt+shift+3"
+move_to_4 = "alt+shift+4"
+move_to_5 = "alt+shift+5"
+move_to_6 = "alt+shift+6"
+move_to_7 = "alt+shift+7"
+move_to_8 = "alt+shift+8"
+move_to_9 = "alt+shift+9"
+
+# ==============================================================================
+# Ratatui System Suite Quick Launchers (Leader / Window Management Mode)
+# ==============================================================================
+[launchers]
+# File Manager (Yazi)
+file_manager = { key = "e", title = "Yazi Files", cmd = "yazi", floating = false }
+
+# PipeWire Audio Mixer (Wiremix)
+audio_mixer = { key = "a", title = "Wiremix Audio", cmd = "wiremix", floating = true, width = "75%", height = "75%" }
+
+# Wi-Fi Network Manager over iwd (Impala)
+wifi_manager = { key = "i", title = "Impala Wi-Fi", cmd = "impala", floating = true, width = "75%", height = "75%" }
+
+# Bluetooth Manager over BlueZ (Bluetui)
+bluetooth_manager = { key = "b", title = "Bluetui Bluetooth", cmd = "bluetui", floating = true, width = "75%", height = "75%" }
+
+# System & Process Monitor (Bottom)
+system_monitor = { key = "v", title = "Bottom Monitor", cmd = "btm", floating = false }
+
+# Systemd Service & Journal Manager (systemctl-tui)
+systemd_manager = { key = "s", title = "Systemd Services", cmd = "sudo systemctl-tui", floating = true, width = "85%", height = "80%" }
+
+# Disk Usage Analyzer (dua-cli)
+disk_analyzer = { key = "d", title = "Disk Usage (dua)", cmd = "dua i", floating = true, width = "80%", height = "80%" }
+
+# Git Client (GitUI)
+git_client = { key = "g", title = "GitUI", cmd = "gitui", floating = false }

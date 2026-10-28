@@ -1,0 +1,112 @@
+# ==============================================================================
+# Voidframe Yazi Theme (~/.config/yazi/theme.toml)
+# ==============================================================================
+# Cohesive Obsidian (#0d0f14), Cyan (#00e5ff), and Violet (#9d7cd8) palette.
+
+"$schema" = "https://yazi-rs.github.io/schemas/theme.json"
+
+[mgr]
+cwd = { fg = "#00e5ff", bold = true }
+
+hovered         = { fg = "#0d0f14", bg = "#00e5ff", bold = true }
+preview_hovered = { underline = true }
+
+find_keyword  = { fg = "#e0af68", bold = true, italic = true, underline = true }
+find_position = { fg = "#9d7cd8", bg = "reset", bold = true, italic = true }
+
+marker_copied   = { fg = "#73daca", bg = "#73daca" }
+marker_cut      = { fg = "#f7768e", bg = "#f7768e" }
+marker_marked   = { fg = "#00e5ff", bg = "#00e5ff" }
+marker_selected = { fg = "#9d7cd8", bg = "#9d7cd8" }
+
+tab_active   = { fg = "#0d0f14", bg = "#00e5ff", bold = true }
+tab_inactive = { fg = "#c0caf5", bg = "#151922" }
+tab_width    = 1
+
+count_copied   = { fg = "#0d0f14", bg = "#73daca" }
+count_cut      = { fg = "#0d0f14", bg = "#f7768e" }
+count_selected = { fg = "#0d0f14", bg = "#9d7cd8" }
+
+border_symbol = "│"
+border_style  = { fg = "#282e3d" }
+
+[mode]
+normal_main = { fg = "#0d0f14", bg = "#00e5ff", bold = true }
+normal_alt  = { fg = "#00e5ff", bg = "#151922" }
+
+select_main = { fg = "#0d0f14", bg = "#9d7cd8", bold = true }
+select_alt  = { fg = "#9d7cd8", bg = "#151922" }
+
+unset_main  = { fg = "#0d0f14", bg = "#f7768e", bold = true }
+unset_alt   = { fg = "#f7768e", bg = "#151922" }
+
+[status]
+separator_open  = ""
+separator_close = ""
+separator_style = { fg = "#151922", bg = "#151922" }
+
+progress_label  = { fg = "#e6edf3", bold = true }
+progress_normal = { fg = "#00e5ff", bg = "#151922" }
+progress_error  = { fg = "#f7768e", bg = "#151922" }
+
+perm_type  = { fg = "#7aa2f7" }
+perm_read  = { fg = "#e0af68" }
+perm_write = { fg = "#f7768e" }
+perm_exec  = { fg = "#73daca" }
+perm_sep   = { fg = "#414868" }
+
+[pick]
+border   = { fg = "#00e5ff" }
+active   = { fg = "#9d7cd8", bold = true }
+inactive = { fg = "#e6edf3" }
+
+[input]
+border   = { fg = "#00e5ff" }
+title    = { fg = "#00e5ff", bold = true }
+value    = { fg = "#e6edf3" }
+selected = { reversed = true }
+
+[confirm]
+border  = { fg = "#9d7cd8" }
+title   = { fg = "#9d7cd8", bold = true }
+content = { fg = "#e6edf3" }
+list    = { fg = "#c0caf5" }
+btn_yes = { fg = "#0d0f14", bg = "#00e5ff", bold = true }
+btn_no  = { fg = "#e6edf3", bg = "#151922" }
+
+[cmp]
+border   = { fg = "#00e5ff" }
+active   = { fg = "#0d0f14", bg = "#00e5ff", bold = true }
+inactive = { fg = "#e6edf3" }
+
+[tasks]
+border  = { fg = "#00e5ff" }
+title   = { fg = "#00e5ff", bold = true }
+hovered = { fg = "#9d7cd8", underline = true }
+
+[which]
+cols            = 3
+mask            = { bg = "#0d0f14" }
+cand            = { fg = "#00e5ff" }
+rest            = { fg = "#6e7681" }
+desc            = { fg = "#9d7cd8" }
+separator       = "  "
+separator_style = { fg = "#414868" }
+
+[help]
+on      = { fg = "#00e5ff" }
+run     = { fg = "#9d7cd8" }
+desc    = { fg = "#c0caf5" }
+hovered = { bg = "#151922", bold = true }
+footer  = { fg = "#0d0f14", bg = "#00e5ff" }
+
+[filetype]
+rules = [
+    { mime = "image/*", fg = "#9d7cd8" },
+    { mime = "{audio,video}/*", fg = "#e0af68" },
+    { mime = "application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*}", fg = "#f7768e" },
+    { mime = "application/{pdf,doc,rtf}", fg = "#73daca" },
+    { name = "*", is = "orphan", bg = "#f7768e" },
+    { name = "*", is = "exec", fg = "#73daca" },
+    { name = "*/", fg = "#00e5ff", bold = true },
+]
