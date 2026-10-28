@@ -69,7 +69,7 @@ TTYPath=/dev/tty2
 TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
- PAMName=lemurs
+PAMName=lemurs
 Restart=always
 RestartSec=1
 
@@ -84,11 +84,11 @@ EOF
     systemctl disable getty@tty2.service 2>/dev/null || true
 
     # Enable seatd for rootless Wayland DRM/input access via cage
-    systemctl enable seatd.service 2>/dev/null || true
+    systemctl enable seatd.service 2>/dev/null || warn "seatd.service enable deferred."
 
     # Enable lemurs as the system display manager
     ln -sf /etc/systemd/system/lemurs.service /etc/systemd/system/display-manager.service
-    systemctl enable lemurs.service 2>/dev/null || true
+    systemctl enable lemurs.service 2>/dev/null || warn "lemurs.service symlinked as display-manager.service."
     systemctl set-default graphical.target 2>/dev/null || true
 }
 

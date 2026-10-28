@@ -106,6 +106,16 @@ export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 export DISTRO_VERSION="${DISTRO_VERSION:-0.1.0}"
 export DEBIAN_RELEASE="${DEBIAN_RELEASE:-trixie}"
 export ARCH="${ARCH:-$(dpkg --print-architecture)}"
+
+# Auto-detect GitHub repository slug from git remote if not overridden
+if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; then
+    if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        remote_url="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || true)"
+        if [[ "${remote_url}" =~ github\.com[:/]([^/]+/[^/.]+)(\.git)?$ ]]; then
+            GITHUB_REPO="${BASH_REMATCH[1]}"
+        fi
+    fi
+fi
 export GITHUB_REPO="${GITHUB_REPO:-voidframe/voidframe}"
 export NERD_FONT_VERSION="${NERD_FONT_VERSION:-v3.3.0}"
 export NERD_FONT_NAME="${NERD_FONT_NAME:-JetBrainsMono}"

@@ -194,7 +194,10 @@ install_or_compile_rust_bin() {
     clone_repo "${repo_url}" "${tag}" "${src_dir}"
     (
         cd "${src_dir}"
-        cargo build --release --locked || cargo build --release
+        cargo build --release --locked --bin "${bin_name}" \
+            || cargo build --release --bin "${bin_name}" \
+            || cargo build --release --locked \
+            || cargo build --release
         install -Dm0755 "target/release/${bin_name}" "${dest_bin_dir}/${bin_name}"
     )
 }
@@ -214,7 +217,7 @@ build_lemurs() {
         "${LEMURS_VERSION}" \
         "lemurs" \
         "${stage}/usr/bin" \
-        "false"
+        "true"
 
     package_deb \
         "lemurs" \
@@ -239,7 +242,12 @@ build_tuios() {
     clone_repo "https://github.com/Gaurav-Gosain/tuios.git" "${TUIOS_VERSION}" "${src}"
     (
         cd "${src}"
-        CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "${stage}/usr/bin/tuios" .
+        export GOTOOLCHAIN=auto
+        if [[ -d "./cmd/tuios" ]]; then
+            CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "${stage}/usr/bin/tuios" ./cmd/tuios
+        else
+            CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "${stage}/usr/bin/tuios" .
+        fi
     )
     chmod 0755 "${stage}/usr/bin/tuios"
 

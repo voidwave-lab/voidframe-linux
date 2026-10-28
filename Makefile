@@ -5,6 +5,9 @@
 # ==============================================================================
 
 include config.mk
+ifneq ($(strip $(GITHUB_REPOSITORY)),)
+override GITHUB_REPO := $(GITHUB_REPOSITORY)
+endif
 export
 
 SHELL := /usr/bin/env bash
@@ -16,6 +19,7 @@ ISO_DIR  := $(DIST_DIR)/iso
 DOCKER_IMAGE := $(DISTRO_NAME)-deb-builder:$(DEBIAN_RELEASE)-$(ARCH)
 
 DOCKER_PLATFORM := linux/$(ARCH)
+DOCKER_BUILD_ARGS ?=
 
 .PHONY: help build-debs-docker patch-iso install lint clean
 
@@ -31,6 +35,7 @@ build-debs-docker: ## Compile all Ratatui & TUIOS .deb packages inside Debian Tr
 		--build-arg DEBIAN_RELEASE="$(DEBIAN_RELEASE)" \
 		--build-arg RUST_VERSION="$(RUST_VERSION)" \
 		--build-arg GO_VERSION="$(GO_VERSION)" \
+		$(DOCKER_BUILD_ARGS) \
 		-t "$(DOCKER_IMAGE)" \
 		-f docker/Dockerfile.deb-builder \
 		--load \
@@ -40,6 +45,7 @@ build-debs-docker: ## Compile all Ratatui & TUIOS .deb packages inside Debian Tr
 		-e DISTRO_NAME="$(DISTRO_NAME)" \
 		-e DISTRO_VERSION="$(DISTRO_VERSION)" \
 		-e DISTRO_MAINTAINER="$(DISTRO_MAINTAINER)" \
+		-e GITHUB_REPO="$(GITHUB_REPO)" \
 		-e DEBIAN_RELEASE="$(DEBIAN_RELEASE)" \
 		-e ARCH="$(ARCH)" \
 		-e LEMURS_VERSION="$(LEMURS_VERSION)" \

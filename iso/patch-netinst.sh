@@ -122,7 +122,17 @@ download_debian_iso() {
     local found_url=""
     for base in "${mirror_bases[@]}"; do
         info "Probing Debian ISO mirror: ${base}/ ..."
-        local listing
+        local sums=""
+        if sums="$(curl -fsSL "${base}/SHA512SUMS" 2>/dev/null)"; then
+            local iso_from_sums
+            iso_from_sums="$(printf "%s\n" "${sums}" | awk '{print $2}' | sed 's/^\*//' | grep -E "^debian-[0-9A-Za-z._-]+-${ARCH}-netinst\.iso$" | head -n1 || true)"
+            if [[ -n "${iso_from_sums}" ]]; then
+                found_url="${base}/${iso_from_sums}"
+                break
+            fi
+        fi
+
+        local listing=""
         if listing="$(curl -fsSL "${base}/" 2>/dev/null)"; then
             local iso_name
             iso_name="$(printf "%s" "${listing}" | grep -Eo 'href="debian-[^"]+-'"${ARCH}"'-netinst\.iso"' | head -n1 | sed -E 's/href="|"$//g' || true)"
@@ -292,15 +302,21 @@ build_hybrid_iso() {
     ls -lh "${output_iso}" "${output_iso}.sha256"
 }
 
+TMP_WORK=""
+cleanup() {
+    if [[ -n "${TMP_WORK:-}" && -d "${TMP_WORK}" ]]; then
+        rm -rf "${TMP_WORK}"
+    fi
+}
+trap cleanup EXIT
+
 main() {
     download_debian_iso
 
-    local tmp_work
-    tmp_work="$(mktemp -d -t "${DISTRO_NAME}-iso.XXXXXX")"
-    trap 'rm -rf "${tmp_work}"' EXIT
+    TMP_WORK="$(mktemp -d -t "${DISTRO_NAME}-iso.XXXXXX")"
 
-    local overlay_dir="${tmp_work}/overlay"
-    local extract_dir="${tmp_work}/extract"
+    local overlay_dir="${TMP_WORK}/overlay"
+    local extract_dir="${TMP_WORK}/extract"
     mkdir -p "${overlay_dir}" "${extract_dir}"
 
     prepare_overlay "${overlay_dir}"

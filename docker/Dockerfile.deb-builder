@@ -12,11 +12,11 @@ LABEL org.opencontainers.image.licenses="GPL-3.0-or-later" \
       org.opencontainers.image.title="Voidframe Debian Trixie .deb Builder"
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG RUST_VERSION=1.85.0
+ARG RUST_VERSION=stable
 ARG GO_VERSION=1.24.0
 ARG TARGETARCH
 
-# Install core build dependencies and C development headers for PAM, PipeWire, D-Bus
+# Install core build dependencies and C development headers for PAM, PipeWire, D-Bus, systemd
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -27,27 +27,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fakeroot \
     file \
     git \
+    libasound2-dev \
     libclang-dev \
     libdbus-1-dev \
     libpam0g-dev \
     libpipewire-0.3-dev \
     libssl-dev \
+    libsystemd-dev \
+    libudev-dev \
     libxcb1-dev \
     libxcb-render0-dev \
     libxcb-shape0-dev \
     libxcb-xfixes0-dev \
     lintian \
     mold \
+    perl \
     pkg-config \
-     python3 \
+    protobuf-compiler \
+    python3 \
     unzip \
     xz-utils \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go toolchain
+# Install Go toolchain (with GOTOOLCHAIN=auto so Go modules requiring newer toolchains auto-upgrade)
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/go
+ENV GOTOOLCHAIN=auto
 ENV PATH="${GOROOT}/bin:${GOPATH}/bin:/root/.cargo/bin:${PATH}"
 
 RUN set -eux; \

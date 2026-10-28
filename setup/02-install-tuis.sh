@@ -22,6 +22,14 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
+if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; then
+    if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        remote_url="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || true)"
+        if [[ "${remote_url}" =~ github\.com[:/]([^/]+/[^/.]+)(\.git)?$ ]]; then
+            GITHUB_REPO="${BASH_REMATCH[1]}"
+        fi
+    fi
+fi
 GITHUB_REPO="${GITHUB_REPO:-voidframe/voidframe}"
 BOOTSTRAP_MODE="${BOOTSTRAP_MODE:-auto}"
 DEBS_SOURCE_DIR="${DEBS_SOURCE_DIR:-}"
@@ -125,7 +133,13 @@ install_debs_from_dir() {
     local deb_files=()
     while IFS= read -r -d '' f; do
         deb_files+=("$f")
-    done < <(find "${deb_dir}" -maxdepth 1 -name "*_${ARCH}.deb" -o -name "*.deb" -print0)
+    done < <(find "${deb_dir}" -maxdepth 1 -type f \( -name "*_${ARCH}.deb" -o -name "*_all.deb" \) -print0)
+
+    if [[ "${#deb_files[@]}" -eq 0 ]]; then
+        while IFS= read -r -d '' f; do
+            deb_files+=("$f")
+        done < <(find "${deb_dir}" -maxdepth 1 -type f -name "*.deb" -print0)
+    fi
 
     if [[ "${#deb_files[@]}" -eq 0 ]]; then
         error "No .deb packages found in ${deb_dir}"

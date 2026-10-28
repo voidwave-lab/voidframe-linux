@@ -17,15 +17,17 @@ on:
         type: string
   workflow_call:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
     paths:
       - "config.mk"
+      - "Makefile"
       - "docker/**"
       - ".github/workflows/build-debs.yml"
   pull_request:
     paths:
       - "config.mk"
+      - "Makefile"
       - "docker/**"
       - ".github/workflows/build-debs.yml"
 
@@ -49,20 +51,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up QEMU (multi-arch fallback support)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build .deb packages in Debian Trixie container (${{ matrix.arch }})
+        env:
+          GITHUB_REPO: ${{ github.repository }}
         run: |
-          make build-debs-docker ARCH="${{ matrix.arch }}"
+          make build-debs-docker \
+            ARCH="${{ matrix.arch }}" \
+            GITHUB_REPO="${{ github.repository }}" \
+            DOCKER_BUILD_ARGS="--cache-from type=gha,scope=deb-builder-${{ matrix.arch }} --cache-to type=gha,mode=max,scope=deb-builder-${{ matrix.arch }}"
 
-      - name: Verify built .deb packages
+      - name: Verify built .deb packages (${{ matrix.arch }})
         run: |
           ls -lh "dist/debs/${{ matrix.arch }}/"
+          count=0
           for deb in "dist/debs/${{ matrix.arch }}"/*.deb; do
             echo "=== Inspecting ${deb} ==="
             dpkg-deb --info "${deb}"
+            dpkg-deb --contents "${deb}"
+            count=$((count + 1))
           done
+          if [ "${count}" -lt 10 ]; then
+            echo "Expected 10 .deb packages, found ${count}" >&2
+            exit 1
+          fi
 
       - name: Upload .deb artifacts (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
@@ -79,7 +96,7 @@ jobs:
   release-debs:
     name: Publish .deb Packages to GitHub Release
     needs: build-debs
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository for LICENSE
@@ -102,8 +119,8 @@ jobs:
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
-          name: "Voidframe ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}"
+          tag_name: ${{ inputs.release_tag }}
+          name: "Voidframe ${{ inputs.release_tag }} (.deb Packages)"
           generate_release_notes: true
           files: |
             release-assets/*.deb
