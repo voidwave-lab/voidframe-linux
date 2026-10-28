@@ -232,11 +232,12 @@ EOF
     fi
 
     # Patch BIOS ISOLINUX config (amd64 only)
-    if xorriso -osirrox on -indev "${SOURCE_ISO}" -extract /isolinux/txt.cfg "${iso_extract_dir}/txt.cfg" 2>/dev/null; then
-        if [[ -f "${iso_extract_dir}/txt.cfg" ]]; then
-            info "Patching BIOS ISOLINUX configuration (/isolinux/txt.cfg)..."
-            mkdir -p "${overlay_dir}/isolinux"
-            cat > "${overlay_dir}/isolinux/txt.cfg" <<EOF
+    if [[ "${ARCH}" == "amd64" ]]; then
+        if xorriso -osirrox on -indev "${SOURCE_ISO}" -extract /isolinux/txt.cfg "${iso_extract_dir}/txt.cfg" 2>/dev/null; then
+            if [[ -f "${iso_extract_dir}/txt.cfg" ]]; then
+                info "Patching BIOS ISOLINUX configuration (/isolinux/txt.cfg)..."
+                mkdir -p "${overlay_dir}/isolinux"
+                cat > "${overlay_dir}/isolinux/txt.cfg" <<EOF
 default ${DISTRO_NAME}
 label ${DISTRO_NAME}
     menu label ^${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install
@@ -244,14 +245,15 @@ label ${DISTRO_NAME}
     kernel /install.amd/vmlinuz
     append vga=788 initrd=/install.amd/initrd.gz auto=true priority=critical preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
 EOF
-            cat "${iso_extract_dir}/txt.cfg" >> "${overlay_dir}/isolinux/txt.cfg"
+                cat "${iso_extract_dir}/txt.cfg" >> "${overlay_dir}/isolinux/txt.cfg"
+            fi
         fi
-    fi
 
-    if xorriso -osirrox on -indev "${SOURCE_ISO}" -extract /isolinux/isolinux.cfg "${iso_extract_dir}/isolinux.cfg" 2>/dev/null; then
-        if [[ -f "${iso_extract_dir}/isolinux.cfg" ]]; then
-            mkdir -p "${overlay_dir}/isolinux"
-            sed 's/^timeout 0$/timeout 50/' "${iso_extract_dir}/isolinux.cfg" > "${overlay_dir}/isolinux/isolinux.cfg"
+        if xorriso -osirrox on -indev "${SOURCE_ISO}" -extract /isolinux/isolinux.cfg "${iso_extract_dir}/isolinux.cfg" 2>/dev/null; then
+            if [[ -f "${iso_extract_dir}/isolinux.cfg" ]]; then
+                mkdir -p "${overlay_dir}/isolinux"
+                sed 's/^timeout 0$/timeout 50/' "${iso_extract_dir}/isolinux.cfg" > "${overlay_dir}/isolinux/isolinux.cfg"
+            fi
         fi
     fi
 }
@@ -269,6 +271,7 @@ build_hybrid_iso() {
         -indev "${SOURCE_ISO}"
         -outdev "${output_iso}"
         -volid "${volid}"
+        -compliance joliet_long_names
         -boot_image any replay
         -map "${overlay_dir}/preseed.cfg" "/preseed.cfg"
         -map "${overlay_dir}/${DISTRO_NAME}" "/${DISTRO_NAME}"
