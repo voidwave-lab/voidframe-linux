@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install ISO tooling (xorriso)
         run: |
@@ -61,7 +61,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends xorriso curl ca-certificates jq shellcheck
 
       - name: Download built .deb artifacts (${{ matrix.arch }})
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: debs-${{ matrix.arch }}
           path: dist/debs/${{ matrix.arch }}
@@ -87,7 +87,7 @@ jobs:
           done
 
       - name: Upload ISO artifact (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: iso-${{ matrix.arch }}
           path: |
@@ -106,23 +106,27 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository for LICENSE
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download all ISO artifacts (amd64 & arm64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: release-bundle
           pattern: iso-*
           merge-multiple: true
 
       - name: Download all .deb artifacts (amd64 & arm64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: release-bundle
           pattern: debs-*
           merge-multiple: true
 
-      - name: Prepare Release Checksums & License Bundle
+      - name: Publish ISOs and .deb Packages to GitHub Release via GitHub CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag || 'v0.1.0' }}
+          DISTRO: ${{ inputs.distro_name || 'voidframe' }}
         run: |
           cp LICENSE release-bundle/LICENSE
           cd release-bundle
@@ -130,16 +134,11 @@ jobs:
           ls -lh
           cat SHA256SUMS.txt
 
-      - name: Publish ISOs and .deb Packages to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag || 'v0.1.0' }}
-          name: "${{ inputs.distro_name || 'voidframe' }} ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag || 'v0.1.0' }}"
-          generate_release_notes: true
-          files: |
-            release-bundle/*.iso
-            release-bundle/*.iso.sha256
-            release-bundle/*.deb
-            release-bundle/SOURCE_MANIFEST.txt
-            release-bundle/LICENSE
-            release-bundle/SHA256SUMS.txt
+          if ! gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release create "${TAG_NAME}" \
+              --title "${DISTRO} ${TAG_NAME}" \
+              --generate-notes
+          fi
+          gh release upload "${TAG_NAME}" \
+            ./*.iso ./*.iso.sha256 ./*.deb SOURCE_MANIFEST.txt LICENSE SHA256SUMS.txt \
+            --clobber

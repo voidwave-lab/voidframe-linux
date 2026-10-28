@@ -44,13 +44,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU (multi-arch fallback support)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build .deb packages in Debian Trixie container (${{ matrix.arch }})
         env:
@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Upload .deb artifacts (${{ matrix.arch }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: debs-${{ matrix.arch }}
           path: |
@@ -95,30 +95,30 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository for LICENSE
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download all .deb artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: release-assets
           pattern: debs-*
           merge-multiple: true
 
-      - name: Generate combined SHA256SUMS
+      - name: Generate combined SHA256SUMS and publish via GitHub CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ inputs.release_tag || 'v0.1.0' }}
         run: |
           cp LICENSE release-assets/LICENSE
           cd release-assets
           sha256sum ./*.deb SOURCE_MANIFEST.txt LICENSE > SHA256SUMS.debs.txt
           cat SHA256SUMS.debs.txt
 
-      - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.release_tag || 'v0.1.0' }}
-          name: "Voidframe ${{ inputs.release_tag || 'v0.1.0' }} (.deb Packages)"
-          generate_release_notes: true
-          files: |
-            release-assets/*.deb
-            release-assets/SOURCE_MANIFEST.txt
-            release-assets/LICENSE
-            release-assets/SHA256SUMS.debs.txt
+          if ! gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release create "${TAG_NAME}" \
+              --title "Voidframe ${TAG_NAME} (.deb Packages)" \
+              --generate-notes
+          fi
+          gh release upload "${TAG_NAME}" \
+            ./*.deb SOURCE_MANIFEST.txt LICENSE SHA256SUMS.debs.txt \
+            --clobber
