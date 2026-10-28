@@ -13,7 +13,7 @@ on:
       publish_release:
         description: "Publish hybrid ISO images and .deb packages to a GitHub Release"
         required: false
-        default: false
+        default: true
         type: boolean
       release_tag:
         description: "Release tag name (used when publish_release is true)"
@@ -21,6 +21,8 @@ on:
         default: "v0.1.0"
         type: string
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
@@ -97,7 +99,7 @@ jobs:
     needs:
       - build-packages
       - patch-iso
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_release != false)
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository for LICENSE
@@ -128,8 +130,8 @@ jobs:
       - name: Publish ISOs and .deb Packages to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}
-          name: "${{ inputs.distro_name || 'voidframe' }} ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag }}"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag || 'v0.1.0' }}
+          name: "${{ inputs.distro_name || 'voidframe' }} ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.release_tag || 'v0.1.0' }}"
           generate_release_notes: true
           files: |
             release-bundle/*.iso
