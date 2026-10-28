@@ -26,6 +26,9 @@ on:
 permissions:
   contents: write
 
+env:
+  NODE_OPTIONS: "--no-deprecation"
+
 jobs:
   build-debs:
     name: Build .debs (${{ matrix.arch }})

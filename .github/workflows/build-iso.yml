@@ -29,6 +29,9 @@ on:
 permissions:
   contents: write
 
+env:
+  NODE_OPTIONS: "--no-deprecation"
+
 jobs:
   # 1. Invoke the multi-arch .deb build pipeline (amd64 & arm64)
   build-packages:
