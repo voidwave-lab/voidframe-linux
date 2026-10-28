@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Voidframe Maintainers
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 set -euo pipefail
 
 # ==============================================================================
 # Voidframe .deb Package Builder (Debian Trixie Container Entrypoint)
 # ==============================================================================
 # Compiles and packages the Ratatui system suite + TUIOS + Lemurs into standard
-# Debian (.deb) packages with runtime dependency metadata in DEBIAN/control.
+# Debian (.deb) packages with runtime dependency metadata in DEBIAN/control and
+# Debian Policy / GNU GPLv3 compliant /usr/share/doc/<pkg>/copyright files.
 
 # --- Logging Helpers ---
 info()  { printf "\033[1;36m[INFO]\033[0m  %s\n" "$*"; }
@@ -56,19 +64,61 @@ deb_version() {
 }
 
 # Build a standard .deb package from a staging directory
-# Usage: package_deb <pkg_name> <version> <depends> <description> <staging_dir>
+# Usage: package_deb <pkg_name> <version> <depends> <description> <staging_dir> <upstream_url> <upstream_license>
 package_deb() {
     local pkg_name="$1"
     local raw_ver="$2"
     local depends="$3"
     local description="$4"
     local stage_dir="$5"
+    local upstream_url="${6:-https://github.com/${GITHUB_REPO:-voidframe/voidframe}}"
+    local upstream_license="${7:-GPL-3.0-or-later}"
 
     local deb_ver
     deb_ver="$(deb_version "${raw_ver}")"
     local deb_file="${OUTPUT_DIR}/${pkg_name}_${deb_ver}_${ARCH}.deb"
 
-    mkdir -p "${stage_dir}/DEBIAN"
+    mkdir -p "${stage_dir}/DEBIAN" "${stage_dir}/usr/share/doc/${pkg_name}"
+
+    # Generate Debian Machine-Readable Copyright & GPLv3 compliance notice
+    cat > "${stage_dir}/usr/share/doc/${pkg_name}/copyright" <<EOF
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: ${pkg_name}
+Upstream-Version: ${raw_ver}
+Source: ${upstream_url}
+
+Files: *
+Copyright: Upstream Authors (${upstream_url})
+License: ${upstream_license}
+
+Files: debian/*
+Copyright: 2026 ${DISTRO_MAINTAINER}
+License: GPL-3.0-or-later
+ This package wrapper and build pipeline are free software: you can
+ redistribute them and/or modify them under the terms of the GNU General
+ Public License as published by the Free Software Foundation, either
+ version 3 of the License, or (at your option) any later version.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ Version 3 can be found in "/usr/share/common-licenses/GPL-3".
+EOF
+
+    cat > "${stage_dir}/usr/share/doc/${pkg_name}/SOURCE_MANIFEST" <<EOF
+Package: ${pkg_name}
+Version: ${deb_ver}
+Upstream-Tag: ${raw_ver}
+Upstream-Source: ${upstream_url}
+Upstream-License: ${upstream_license}
+Packaging-Source: https://github.com/${GITHUB_REPO:-voidframe/voidframe}
+Packaging-License: GPL-3.0-or-later
+EOF
+
+    chmod 0644 "${stage_dir}/usr/share/doc/${pkg_name}/copyright" \
+               "${stage_dir}/usr/share/doc/${pkg_name}/SOURCE_MANIFEST"
+
+    # Record in global SOURCE_MANIFEST.txt for GPLv3 Section 6 Corresponding Source compliance
+    printf "%-16s %-14s %-18s %s\n" "${pkg_name}" "${raw_ver}" "${upstream_license}" "${upstream_url}" \
+        >> "${OUTPUT_DIR}/SOURCE_MANIFEST.txt"
 
     # Strip ELF binaries if possible
     if [[ -d "${stage_dir}/usr/bin" ]]; then
@@ -87,9 +137,9 @@ Architecture: ${ARCH}
 Maintainer: ${DISTRO_MAINTAINER}
 Installed-Size: ${installed_size}
 Depends: ${depends}
-Homepage: https://github.com/${GITHUB_REPO:-voidframe/voidframe}
+Homepage: ${upstream_url}
 Description: ${description}
- Packaged for ${DISTRO_NAME} (Debian ${DEBIAN_RELEASE} TUI OS).
+ Packaged for ${DISTRO_NAME} (Debian ${DEBIAN_RELEASE} TUI OS) under GPL-3.0-or-later.
 EOF
 
     chmod 0755 "${stage_dir}/DEBIAN"
@@ -171,7 +221,9 @@ build_lemurs() {
         "${LEMURS_VERSION}" \
         "libc6, libpam0g, systemd" \
         "Customizable TUI display/login manager written in Rust" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/coastalwhite/lemurs" \
+        "MIT or Apache-2.0"
 }
 
 # ==============================================================================
@@ -196,7 +248,9 @@ build_tuios() {
         "${TUIOS_VERSION}" \
         "libc6" \
         "Terminal-based Operating System & Window Multiplexer (TUIOS)" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/Gaurav-Gosain/tuios" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -239,7 +293,9 @@ build_yazi() {
         "${YAZI_VERSION}" \
         "libc6, file, ffmpeg, 7zip, jq, poppler-utils, fd-find, ripgrep, fzf, zoxide" \
         "Blazing fast terminal file manager written in Rust based on async I/O" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/sxyazi/yazi" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -264,7 +320,9 @@ build_wiremix() {
         "${WIREMIX_VERSION}" \
         "libc6, libpipewire-0.3-0t64 | libpipewire-0.3-0, pipewire, wireplumber" \
         "Ratatui-based native PipeWire audio mixer TUI" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/tsowell/wiremix" \
+        "MIT or GPL-3.0-or-later"
 }
 
 # ==============================================================================
@@ -289,7 +347,9 @@ build_impala() {
         "${IMPALA_VERSION}" \
         "libc6, iwd, dbus" \
         "TUI for managing Wi-Fi networks powered by iwd and Ratatui" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/pythops/impala" \
+        "GPL-3.0-only"
 }
 
 # ==============================================================================
@@ -314,7 +374,9 @@ build_bluetui() {
         "${BLUETUI_VERSION}" \
         "libc6, bluez, libdbus-1-3, dbus" \
         "TUI for managing Bluetooth devices over BlueZ D-Bus" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/pythops/bluetui" \
+        "GPL-3.0-only"
 }
 
 # ==============================================================================
@@ -339,7 +401,9 @@ build_bottom() {
         "${BOTTOM_VERSION}" \
         "libc6" \
         "Customizable graphical process/system monitor TUI (btm)" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/ClementTsang/bottom" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -364,7 +428,9 @@ build_systemctl_tui() {
         "${SYSTEMCTL_TUI_VERSION}" \
         "libc6, systemd" \
         "Fast, simple TUI for interacting with systemd services and journals" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/rgwood/systemctl-tui" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -389,7 +455,9 @@ build_dua_cli() {
         "${DUA_CLI_VERSION}" \
         "libc6" \
         "Disk Usage Analyzer TUI with fast parallel traversal (dua)" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/Byron/dua-cli" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -414,7 +482,9 @@ build_gitui() {
         "${GITUI_VERSION}" \
         "libc6, git" \
         "Blazing fast terminal-UI for Git written in Rust" \
-        "${stage}"
+        "${stage}" \
+        "https://github.com/extrawurst/gitui" \
+        "MIT"
 }
 
 # ==============================================================================
@@ -422,6 +492,13 @@ build_gitui() {
 # ==============================================================================
 main() {
     info "Starting ${DISTRO_NAME} package build for Debian ${DEBIAN_RELEASE} (${ARCH})"
+    cat > "${OUTPUT_DIR}/SOURCE_MANIFEST.txt" <<EOF
+# ${DISTRO_NAME} (${DISTRO_VERSION}) Corresponding Source Manifest (GNU GPLv3 Section 6)
+# Packaging & Build Pipeline License: GPL-3.0-or-later (https://github.com/${GITHUB_REPO:-voidframe/voidframe})
+# ----------------------------------------------------------------------------------------
+# PACKAGE        TAG            UPSTREAM_LICENSE   UPSTREAM_SOURCE_URL
+EOF
+
     build_lemurs
     build_tuios
     build_yazi
@@ -438,7 +515,7 @@ main() {
         cd "${OUTPUT_DIR}"
         dpkg-scanpackages --multiversion . /dev/null > Packages
         gzip -9c Packages > Packages.gz
-        sha256sum ./*.deb Packages Packages.gz > SHA256SUMS
+        sha256sum ./*.deb Packages Packages.gz SOURCE_MANIFEST.txt > SHA256SUMS
     )
 
     info "All 10 .deb packages successfully built in ${OUTPUT_DIR}:"

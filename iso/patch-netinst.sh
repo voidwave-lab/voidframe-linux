@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Voidframe Maintainers
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 set -euo pipefail
 
 # ==============================================================================
@@ -150,7 +157,11 @@ prepare_overlay() {
     info "Injecting /preseed.cfg customized for DISTRO_NAME=${DISTRO_NAME}..."
     sed "s/voidframe/${DISTRO_NAME}/g" "${REPO_ROOT}/iso/preseed.cfg" > "${overlay_dir}/preseed.cfg"
 
-    # 2. Copy config.mk, setup scripts, and configs
+    # 2. Copy LICENSE, config.mk, setup scripts, and configs
+    if [[ -f "${REPO_ROOT}/LICENSE" ]]; then
+        cp -a "${REPO_ROOT}/LICENSE" "${overlay_dir}/LICENSE"
+        cp -a "${REPO_ROOT}/LICENSE" "${payload_dir}/LICENSE"
+    fi
     cp -a "${REPO_ROOT}/config.mk" "${payload_dir}/config.mk"
     cp -a "${REPO_ROOT}/setup/." "${payload_dir}/setup/"
     cp -a "${REPO_ROOT}/configs/." "${payload_dir}/configs/"
@@ -160,7 +171,7 @@ prepare_overlay() {
     if [[ -d "${DEBS_DIR}" ]] && compgen -G "${DEBS_DIR}/*.deb" >/dev/null; then
         info "Embedding .deb packages from ${DEBS_DIR} into /${DISTRO_NAME}/debs/..."
         cp -a "${DEBS_DIR}/"*.deb "${payload_dir}/debs/"
-        for meta in Packages Packages.gz SHA256SUMS; do
+        for meta in Packages Packages.gz SHA256SUMS SOURCE_MANIFEST.txt; do
             [[ -f "${DEBS_DIR}/${meta}" ]] && cp -a "${DEBS_DIR}/${meta}" "${payload_dir}/debs/"
         done
     else
@@ -253,6 +264,9 @@ build_hybrid_iso() {
         -map "${overlay_dir}/${DISTRO_NAME}" "/${DISTRO_NAME}"
     )
 
+    if [[ -f "${overlay_dir}/LICENSE" ]]; then
+        xorriso_args+=(-map "${overlay_dir}/LICENSE" "/LICENSE")
+    fi
     if [[ -f "${overlay_dir}/boot/grub/grub.cfg" ]]; then
         xorriso_args+=(-map "${overlay_dir}/boot/grub/grub.cfg" "/boot/grub/grub.cfg")
     fi

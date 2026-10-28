@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Voidframe Maintainers
 name: Build Debian Trixie TUI Packages (.deb)
 
 on:
@@ -70,6 +72,7 @@ jobs:
             dist/debs/${{ matrix.arch }}/*.deb
             dist/debs/${{ matrix.arch }}/Packages*
             dist/debs/${{ matrix.arch }}/SHA256SUMS
+            dist/debs/${{ matrix.arch }}/SOURCE_MANIFEST.txt
           if-no-files-found: error
           retention-days: 30
 
@@ -79,6 +82,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout repository for LICENSE
+        uses: actions/checkout@v4
+
       - name: Download all .deb artifacts
         uses: actions/download-artifact@v4
         with:
@@ -88,8 +94,9 @@ jobs:
 
       - name: Generate combined SHA256SUMS
         run: |
+          cp LICENSE release-assets/LICENSE
           cd release-assets
-          sha256sum ./*.deb > SHA256SUMS.debs.txt
+          sha256sum ./*.deb SOURCE_MANIFEST.txt LICENSE > SHA256SUMS.debs.txt
           cat SHA256SUMS.debs.txt
 
       - name: Publish to GitHub Release
@@ -100,4 +107,6 @@ jobs:
           generate_release_notes: true
           files: |
             release-assets/*.deb
+            release-assets/SOURCE_MANIFEST.txt
+            release-assets/LICENSE
             release-assets/SHA256SUMS.debs.txt

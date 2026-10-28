@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Voidframe Maintainers
 # ==============================================================================
 # Voidframe Central Configuration (Makefile & Shell Compatible)
 # ==============================================================================
@@ -6,6 +8,7 @@
 
 DISTRO_NAME ?= voidframe
 DISTRO_VERSION ?= 0.1.0
+DISTRO_LICENSE ?= GPL-3.0-or-later
 DISTRO_MAINTAINER ?= Voidframe Maintainers <maintainers@voidframe.local>
 GITHUB_REPO ?= voidframe/voidframe
 

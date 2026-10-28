@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Voidframe Maintainers
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 set -euo pipefail
 
 # ==============================================================================
@@ -45,6 +52,11 @@ deploy_configs_to_root() {
 install_system_xdg_configs() {
     info "Installing system-wide /etc/xdg/foot/foot.ini..."
     install -Dm0644 "${REPO_ROOT}/configs/foot/foot.ini" /etc/xdg/foot/foot.ini
+
+    if [[ -f "${REPO_ROOT}/LICENSE" ]]; then
+        info "Installing GNU GPLv3 license to /usr/share/doc/${DISTRO_NAME}/LICENSE..."
+        install -Dm0644 "${REPO_ROOT}/LICENSE" "/usr/share/doc/${DISTRO_NAME}/LICENSE"
+    fi
 
     info "Installing /etc/profile.d/${DISTRO_NAME}-env.sh..."
     mkdir -p /etc/profile.d

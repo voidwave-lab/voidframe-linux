@@ -263,3 +263,32 @@ In **TUIOS**, press **`Ctrl+b`** (or **`Esc`** in Window Management mode) to ent
 | `Ctrl+Shift+c` | Copy selection to Wayland clipboard |
 | `Ctrl+Shift+v` | Paste from Wayland clipboard |
 | `Ctrl++` / `Ctrl+-` / `Ctrl+0` | Increase / Decrease / Reset JetBrainsMono Nerd Font size |
+
+---
+
+## 6. License & GNU GPLv3 Compliance
+
+This repository, including all build pipelines, provisioning scripts, preseed configurations, and dotfiles, is free software licensed under the **GNU General Public License v3.0 or later (`GPL-3.0-or-later`)** — see [`LICENSE`](LICENSE) for the full text.
+
+### Upstream License Compatibility Matrix
+
+All bundled TUI applications are distributed under Free Software licenses compatible with **GNU GPLv3**:
+
+| Package | Upstream License | GPLv3 Compatible | Installed Debian Copyright Path |
+| :--- | :--- | :---: | :--- |
+| `lemurs` | `MIT OR Apache-2.0` | Yes | `/usr/share/doc/lemurs/copyright` |
+| `tuios` | `MIT` | Yes | `/usr/share/doc/tuios/copyright` |
+| `yazi` (`yazi` + `ya`) | `MIT` | Yes | `/usr/share/doc/yazi/copyright` |
+| `wiremix` | `MIT OR GPL-3.0-or-later` | Yes | `/usr/share/doc/wiremix/copyright` |
+| `impala` | `GPL-3.0-only` | Yes | `/usr/share/doc/impala/copyright` |
+| `bluetui` | `GPL-3.0-only` | Yes | `/usr/share/doc/bluetui/copyright` |
+| `bottom` (`btm`) | `MIT` | Yes | `/usr/share/doc/bottom/copyright` |
+| `systemctl-tui` | `MIT` | Yes | `/usr/share/doc/systemctl-tui/copyright` |
+| `dua-cli` (`dua`) | `MIT` | Yes | `/usr/share/doc/dua-cli/copyright` |
+| `gitui` | `MIT` | Yes | `/usr/share/doc/gitui/copyright` |
+
+### Corresponding Source & Binary Distribution (GPLv3 §4 & §6)
+
+- Every `.deb` package built by [`docker/build-packages.sh`](docker/build-packages.sh) embeds a Debian machine-readable `/usr/share/doc/<pkg>/copyright` file and `/usr/share/doc/<pkg>/SOURCE_MANIFEST` recording the exact upstream repository URL, release tag, and license.
+- Every patched ISO produced by [`iso/patch-netinst.sh`](iso/patch-netinst.sh) and every GitHub Release includes `/LICENSE` (full GNU GPLv3 text) and `SOURCE_MANIFEST.txt`.
+
