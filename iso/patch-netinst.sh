@@ -179,10 +179,14 @@ prepare_overlay() {
     chmod +x "${payload_dir}/setup/"*.sh "${payload_dir}/configs/lemurs/wayland/tuios-session"
 
     # 3. Copy pre-built .deb packages
+    # IMPORTANT: Do NOT copy Packages or Packages.gz onto the ISO!
+    # If Packages/Packages.gz exist in /voidframe/debs/, apt-cdrom (40cdrom) automatically
+    # registers /voidframe/debs/ as an unsigned CD-ROM repository in /target/etc/apt/sources.list,
+    # causing apt-setup / apt-get update to fail due to a missing Release file.
     if [[ -d "${DEBS_DIR}" ]] && compgen -G "${DEBS_DIR}/*.deb" >/dev/null; then
         info "Embedding .deb packages from ${DEBS_DIR} into /${DISTRO_NAME}/debs/..."
         cp -a "${DEBS_DIR}/"*.deb "${payload_dir}/debs/"
-        for meta in Packages Packages.gz SHA256SUMS SOURCE_MANIFEST.txt; do
+        for meta in SHA256SUMS SOURCE_MANIFEST.txt; do
             [[ -f "${DEBS_DIR}/${meta}" ]] && cp -a "${DEBS_DIR}/${meta}" "${payload_dir}/debs/"
         done
     else
@@ -219,7 +223,7 @@ set timeout=5
 
 menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
     set background_color=black
-    linux    /install.${ARCH/#amd64/amd}/vmlinuz auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local quiet ---
+    linux    /install.${ARCH/#amd64/amd}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local quiet ---
     initrd   /install.${ARCH/#amd64/amd}/initrd.gz
 }
 
@@ -229,8 +233,9 @@ EOF
             sed -i.bak 's|/install\.arm64/|/install.a64/|g' "${overlay_dir}/boot/grub/grub.cfg"
             rm -f "${overlay_dir}/boot/grub/grub.cfg.bak"
         fi
-        # Remove any overriding 'set default=' from the original grub.cfg before appending
-        grep -v '^set default=' "${iso_extract_dir}/grub.cfg" >> "${overlay_dir}/boot/grub/grub.cfg" || true
+        # Remove any overriding 'set default=' and inject ipv6.disable=1 into fallback menu entries
+        grep -v '^set default=' "${iso_extract_dir}/grub.cfg" \
+            | sed 's|/vmlinuz |/vmlinuz ipv6.disable=1 |g' >> "${overlay_dir}/boot/grub/grub.cfg" || true
     fi
 
     # Patch BIOS ISOLINUX config (amd64 only)
@@ -245,9 +250,10 @@ label ${DISTRO_NAME}
     menu label ^${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install
     menu default
     kernel /install.amd/vmlinuz
-    append vga=788 initrd=/install.amd/initrd.gz auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
+    append vga=788 initrd=/install.amd/initrd.gz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
 EOF
-                grep -v '^default ' "${iso_extract_dir}/txt.cfg" | sed 's/menu default//g' >> "${overlay_dir}/isolinux/txt.cfg" || true
+                grep -v '^default ' "${iso_extract_dir}/txt.cfg" \
+                    | sed 's/menu default//g; s/append /append ipv6.disable=1 /g' >> "${overlay_dir}/isolinux/txt.cfg" || true
             fi
         fi
 
