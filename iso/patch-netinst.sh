@@ -112,7 +112,8 @@ download_debian_iso() {
         return 0
     fi
 
-    # Probe official Debian release & weekly build mirrors for Debian 13 (Trixie)
+    # Probe official Debian 13 (Trixie) release & weekly/daily build mirrors
+    # Strictly match Debian 13 (13.x) or testing/trixie netinst ISOs (never Debian 12 Bookworm).
     local mirror_bases=(
         "https://cdimage.debian.org/debian-cd/current/${ARCH}/iso-cd"
         "https://cdimage.debian.org/cdimage/weekly-builds/${ARCH}/iso-cd"
@@ -121,11 +122,11 @@ download_debian_iso() {
 
     local found_url=""
     for base in "${mirror_bases[@]}"; do
-        info "Probing Debian ISO mirror: ${base}/ ..."
+        info "Probing Debian Trixie ISO mirror: ${base}/ ..."
         local sums=""
         if sums="$(curl -fsSL "${base}/SHA512SUMS" 2>/dev/null)"; then
             local iso_from_sums
-            iso_from_sums="$(printf "%s\n" "${sums}" | awk '{print $2}' | sed 's/^\*//' | grep -E "^debian-[0-9A-Za-z._-]+-${ARCH}-netinst\.iso$" | head -n1 || true)"
+            iso_from_sums="$(printf "%s\n" "${sums}" | awk '{print $2}' | sed 's/^\*//' | grep -E "^debian-(13\.[0-9.]+|testing|trixie[^-]*)-${ARCH}-netinst\.iso$" | head -n1 || true)"
             if [[ -n "${iso_from_sums}" ]]; then
                 found_url="${base}/${iso_from_sums}"
                 break
@@ -135,7 +136,7 @@ download_debian_iso() {
         local listing=""
         if listing="$(curl -fsSL "${base}/" 2>/dev/null)"; then
             local iso_name
-            iso_name="$(printf "%s" "${listing}" | grep -Eo 'href="debian-[^"]+-'"${ARCH}"'-netinst\.iso"' | head -n1 | sed -E 's/href="|"$//g' || true)"
+            iso_name="$(printf "%s" "${listing}" | grep -Eo 'href="debian-(13\.[0-9.]+|testing|trixie[^"]*)-'"${ARCH}"'-netinst\.iso"' | head -n1 | sed -E 's/href="|"$//g' || true)"
             if [[ -n "${iso_name}" ]]; then
                 found_url="${base}/${iso_name}"
                 break
@@ -218,7 +219,7 @@ set timeout=5
 
 menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
     set background_color=black
-    linux    /install.${ARCH/#amd64/amd}/vmlinuz auto=true priority=critical preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local quiet ---
+    linux    /install.${ARCH/#amd64/amd}/vmlinuz auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local quiet ---
     initrd   /install.${ARCH/#amd64/amd}/initrd.gz
 }
 
@@ -228,7 +229,8 @@ EOF
             sed -i.bak 's|/install\.arm64/|/install.a64/|g' "${overlay_dir}/boot/grub/grub.cfg"
             rm -f "${overlay_dir}/boot/grub/grub.cfg.bak"
         fi
-        cat "${iso_extract_dir}/grub.cfg" >> "${overlay_dir}/boot/grub/grub.cfg"
+        # Remove any overriding 'set default=' from the original grub.cfg before appending
+        grep -v '^set default=' "${iso_extract_dir}/grub.cfg" >> "${overlay_dir}/boot/grub/grub.cfg" || true
     fi
 
     # Patch BIOS ISOLINUX config (amd64 only)
@@ -243,9 +245,9 @@ label ${DISTRO_NAME}
     menu label ^${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install
     menu default
     kernel /install.amd/vmlinuz
-    append vga=788 initrd=/install.amd/initrd.gz auto=true priority=critical preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
+    append vga=788 initrd=/install.amd/initrd.gz auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
 EOF
-                cat "${iso_extract_dir}/txt.cfg" >> "${overlay_dir}/isolinux/txt.cfg"
+                grep -v '^default ' "${iso_extract_dir}/txt.cfg" | sed 's/menu default//g' >> "${overlay_dir}/isolinux/txt.cfg" || true
             fi
         fi
 

@@ -94,6 +94,24 @@ BASE_PACKAGES=(
 )
 
 install_apt_packages() {
+    # Ensure any residual 'deb cdrom:' lines in /etc/apt/sources.list are disabled
+    if [[ -f /etc/apt/sources.list ]]; then
+        sed -i '/^deb cdrom:/s/^/# /' /etc/apt/sources.list
+        if ! grep -Eq '^deb https?://' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+            local codename="${DEBIAN_RELEASE:-trixie}"
+            if [[ -f /etc/os-release ]]; then
+                # shellcheck disable=SC1091
+                codename="$(. /etc/os-release && printf "%s" "${VERSION_CODENAME:-trixie}")"
+            fi
+            info "No active HTTP APT mirror found in /etc/apt/sources.list; configuring deb.debian.org (${codename})..."
+            cat >> /etc/apt/sources.list <<EOF
+deb http://deb.debian.org/debian ${codename} main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian ${codename}-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security ${codename}-security main contrib non-free non-free-firmware
+EOF
+        fi
+    fi
+
     info "Updating APT package indices..."
     apt-get update -y
 
