@@ -1,5 +1,7 @@
 # Voidframe (`voidframe`)
 
+[![Build Patched Debian Trixie Netinst ISO](https://github.com/voidwave-lab/voidframe-linux/actions/workflows/build-iso.yml/badge.svg)](https://github.com/voidwave-lab/voidframe-linux/actions/workflows/build-iso.yml)
+
 > **A suckless-inspired, keyboard-driven, ultra-low-latency TUI Operating System built on Debian 13 (Trixie), powered by the Ratatui ecosystem and TUIOS over an invisible Wayland micro-compositor kiosk.**
 
 ---
