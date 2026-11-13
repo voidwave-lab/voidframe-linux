@@ -1,28 +1,50 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Voidframe Maintainers
 # ==============================================================================
-# Voidframe Lemurs TUI Display & Login Manager Configuration
+# Voidframe Lemurs TUI Display & Login Manager Configuration (v0.3.2+)
 # ==============================================================================
 
+# Virtual terminal where Lemurs runs (must match TTYPath=/dev/tty2 in lemurs.service)
 tty = 2
 
+# Logging configuration
 main_log_path = "/var/log/lemurs.log"
 client_log_path = "/var/log/lemurs.client.log"
 do_log = true
 
+# File path (NOT directory) used to cache last logged-in user and selected session
 cache_path = "/var/cache/lemurs"
 pam_service = "lemurs"
 
 system_shell = "/bin/bash"
 initial_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# Power management actions
-power_controls = [
-    { name = "Shutdown", cmd = "systemctl poweroff -i", key = "F1", color = "light red", hint_color = "dark gray" },
-    { name = "Reboot", cmd = "systemctl reboot -i", key = "F2", color = "light cyan", hint_color = "dark gray" },
-    { name = "Suspend", cmd = "systemctl suspend -i", key = "F3", color = "light magenta", hint_color = "dark gray" },
-]
+# Power management controls (F1 / F2 / F3)
+[power_controls]
+hint_margin = 2
 
+[[power_controls.entries]]
+hint = "Shutdown"
+hint_color = "light red"
+hint_modifiers = ""
+key = "F1"
+cmd = "systemctl poweroff -i"
+
+[[power_controls.entries]]
+hint = "Reboot"
+hint_color = "light cyan"
+hint_modifiers = ""
+key = "F2"
+cmd = "systemctl reboot -i"
+
+[[power_controls.entries]]
+hint = "Suspend"
+hint_color = "light magenta"
+hint_modifiers = ""
+key = "F3"
+cmd = "systemctl suspend -i"
+
+# Background styling
 [background]
 show_background = true
 
@@ -31,17 +53,21 @@ color = "black"
 show_border = true
 border_color = "cyan"
 
-[switcher]
+# Wayland / session environment selector
+[environment_switcher]
 switcher_visibility = "visible"
-toggle_key = "F12"
 remember = true
-base_color = "dark gray"
-focused_color = "light cyan"
-selected_color = "magenta"
 show_movers = true
 mover_color = "dark gray"
-focused_mover_color = "cyan"
+mover_modifiers = ""
+mover_color_focused = "cyan"
+mover_modifiers_focused = "bold"
+selected_color = "magenta"
+selected_modifiers = ""
+selected_color_focused = "light cyan"
+selected_modifiers_focused = "bold"
 
+# Operator (Username) input field
 [username_field]
 remember = true
 
@@ -50,14 +76,15 @@ show_title = true
 title = "Operator"
 title_color = "cyan"
 content_color = "white"
-focused_title_color = "light cyan"
-focused_content_color = "white"
+title_color_focused = "light cyan"
+content_color_focused = "white"
 show_border = true
 border_color = "dark gray"
-focused_border_color = "cyan"
+border_color_focused = "cyan"
 use_max_width = true
 max_width = 48
 
+# Passphrase input field
 [password_field]
 content_replacement_character = "*"
 
@@ -66,19 +93,25 @@ show_title = true
 title = "Passphrase"
 title_color = "magenta"
 content_color = "light cyan"
-focused_title_color = "light magenta"
-focused_content_color = "light cyan"
+title_color_focused = "light magenta"
+content_color_focused = "light cyan"
 show_border = true
 border_color = "dark gray"
-focused_border_color = "magenta"
+border_color_focused = "magenta"
 use_max_width = true
 max_width = 48
 
+# Wayland session discovery:
+# - scripts_path: executable wrapper scripts (e.g., /etc/lemurs/wayland/tuios-session)
+# - wayland_sessions_path: standard .desktop entries (/usr/share/wayland-sessions)
 [wayland]
-wayland_sessions_path = "/etc/lemurs/wayland"
+scripts_path = "/etc/lemurs/wayland"
+wayland_sessions_path = "/usr/share/wayland-sessions"
 
+# X11 session discovery (kept valid for config schema; Voidframe runs pure Wayland)
 [x11]
-x11_sessions_path = "/etc/lemurs/wms"
+scripts_path = "/etc/lemurs/wms"
+xsessions_path = "/usr/share/xsessions"
 xserver_path = "/usr/bin/X"
 xauth_path = "/usr/bin/xauth"
 xserver_timeout_secs = 5

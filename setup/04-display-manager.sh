@@ -14,6 +14,7 @@ set -euo pipefail
 # - Configures /etc/pam.d/lemurs for systemd-logind & PipeWire session creation
 # - Installs /etc/systemd/system/lemurs.service on tty2
 # - Installs /etc/lemurs/config.toml and /etc/lemurs/wayland/tuios-session
+# - Ensures DRM framebuffer modules & console=tty0 are active on boot
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +40,7 @@ install_pam_config() {
 auth       include      common-auth
 account    include      common-account
 password   include      common-password
-session    required     pam_loginuid.so
+-session   optional     pam_loginuid.so
 session    include      common-session
 -session   optional     pam_systemd.so
 EOF
@@ -48,35 +49,81 @@ EOF
 
 install_lemurs_configs() {
     info "Installing Lemurs configuration and Wayland kiosk session wrapper..."
-    mkdir -p /etc/lemurs/wayland /etc/lemurs/wms /var/cache/lemurs
+    mkdir -p \
+        /etc/lemurs/wayland \
+        /etc/lemurs/wms \
+        /usr/share/wayland-sessions \
+        /usr/share/xsessions \
+        /var/cache \
+        /var/log
+
+    # Note: cache_path (/var/cache/lemurs) in Lemurs is a regular file, NOT a directory!
+    if [[ -d /var/cache/lemurs ]]; then
+        rm -rf /var/cache/lemurs
+    fi
 
     install -Dm0644 "${REPO_ROOT}/configs/lemurs/config.toml" /etc/lemurs/config.toml
     install -Dm0755 "${REPO_ROOT}/configs/lemurs/wayland/tuios-session" /etc/lemurs/wayland/tuios-session
+}
+
+configure_boot_framebuffer() {
+    # 1. Ensure virtio_gpu & simpledrm load early in initramfs on ARM64/x86_64 VMs (UTM / QEMU)
+    if [[ -f /etc/initramfs-tools/modules ]]; then
+        local initramfs_changed="false"
+        for mod in virtio_gpu simpledrm; do
+            if ! grep -qx "${mod}" /etc/initramfs-tools/modules; then
+                printf "%s\n" "${mod}" >> /etc/initramfs-tools/modules
+                initramfs_changed="true"
+            fi
+        done
+        if [[ "${initramfs_changed}" == "true" ]] && command -v update-initramfs >/dev/null 2>&1; then
+            update-initramfs -u >/dev/null 2>&1 || true
+        fi
+    fi
+
+    # 2. Ensure installed GRUB passes console=tty0 so ARM64 UEFI firmware (ACPI SPCR -> ttyAMA0)
+    #    never hides boot/VT output on UTM / QEMU displays.
+    if [[ -f /etc/default/grub ]]; then
+        if ! grep -Eq '^GRUB_CMDLINE_LINUX=.*console=tty0' /etc/default/grub; then
+            if grep -Eq '^GRUB_CMDLINE_LINUX="' /etc/default/grub; then
+                sed -i 's/^GRUB_CMDLINE_LINUX="\([^"]*\)"/GRUB_CMDLINE_LINUX="\1 console=tty0"/' /etc/default/grub
+                sed -i 's/GRUB_CMDLINE_LINUX=" console=tty0"/GRUB_CMDLINE_LINUX="console=tty0"/' /etc/default/grub
+            else
+                printf '\nGRUB_CMDLINE_LINUX="console=tty0"\n' >> /etc/default/grub
+            fi
+            if command -v update-grub >/dev/null 2>&1; then
+                update-grub >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
 }
 
 install_systemd_service() {
     info "Configuring lemurs.service on tty2..."
     mkdir -p /etc/systemd/system
 
+    # Note: Do NOT set PAMName= in lemurs.service — Lemurs opens its own PAM session
+    # using pam_service="lemurs" when authenticating the user. Setting PAMName= here
+    # causes systemd to lock /proc/self/loginuid=0 beforehand, triggering EPERM on login.
     cat > /etc/systemd/system/lemurs.service <<'EOF'
 [Unit]
 Description=Lemurs TUI Display & Login Manager (Voidframe)
+Documentation=https://github.com/coastalwhite/lemurs
 After=systemd-user-sessions.service plymouth-quit-wait.service getty@tty2.service seatd.service
 Conflicts=getty@tty2.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=idle
-ExecStartPre=-/usr/bin/chvt 2
 ExecStart=/usr/bin/lemurs
 StandardInput=tty
 StandardOutput=tty
+StandardError=journal
 TTYPath=/dev/tty2
 TTYReset=yes
 TTYVHangup=yes
-TTYVTDisallocate=yes
-PAMName=lemurs
 Restart=always
-RestartSec=1
+RestartSec=2
 
 [Install]
 WantedBy=graphical.target
@@ -84,14 +131,6 @@ Alias=display-manager.service
 EOF
 
     chmod 0644 /etc/systemd/system/lemurs.service
-
-    # Ensure virtio_gpu DRM module loads early in initramfs on ARM64/x86_64 VMs (UTM / QEMU)
-    if [[ -f /etc/initramfs-tools/modules ]] && ! grep -qx "virtio_gpu" /etc/initramfs-tools/modules; then
-        printf "\nvirtio_gpu\n" >> /etc/initramfs-tools/modules
-        if command -v update-initramfs >/dev/null 2>&1; then
-            update-initramfs -u 2>/dev/null || true
-        fi
-    fi
 
     # Disable getty@tty2 so lemurs owns tty2 cleanly
     systemctl disable getty@tty2.service 2>/dev/null || true
@@ -110,7 +149,9 @@ main() {
     install_pam_config
     ui_progress 88 "Installing Lemurs TUI login config & Cage Wayland session..."
     install_lemurs_configs
-    ui_progress 91 "Enabling lemurs.service (tty2), seatd, and virtio_gpu DRM..."
+    ui_progress 90 "Configuring initramfs DRM drivers & GRUB console=tty0..."
+    configure_boot_framebuffer
+    ui_progress 92 "Enabling lemurs.service (tty2) & seatd..."
     install_systemd_service
     ui_ok "Lemurs display manager and Cage Wayland kiosk configured on tty2."
 }

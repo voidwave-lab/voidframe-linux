@@ -12,12 +12,15 @@ set -euo pipefail
 # Voidframe Wayland Micro-Compositor Kiosk Session (/etc/lemurs/wayland/tuios-session)
 # ==============================================================================
 # Executed by Lemurs upon PAM authentication on tty2.
-# Launches Cage (Wayland kiosk compositor) -> fullscreen Foot -> TUIOS.
+# Launches Cage (Wayland kiosk compositor) -> fullscreen Foot -> TUIOS, with an
+# automatic fallback to direct TTY TUIOS if DRM/KMS is unavailable in the VM.
 # ==============================================================================
 
 export XDG_SESSION_TYPE="wayland"
 export XDG_SESSION_DESKTOP="voidframe"
 export XDG_CURRENT_DESKTOP="voidframe"
+export XDG_VTNR="${XDG_VTNR:-2}"
+export XDG_SEAT="${XDG_SEAT:-seat0}"
 export COLORTERM="truecolor"
 export EDITOR="${EDITOR:-nvim}"
 export VISUAL="${VISUAL:-nvim}"
@@ -25,9 +28,15 @@ export VISUAL="${VISUAL:-nvim}"
 export WLR_RENDERER_ALLOW_SOFTWARE="${WLR_RENDERER_ALLOW_SOFTWARE:-1}"
 export WLR_NO_HARDWARE_CURSORS="${WLR_NO_HARDWARE_CURSORS:-1}"
 
-# Ensure XDG_RUNTIME_DIR is set (provided by pam_systemd)
-if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then
-    XDG_RUNTIME_DIR="/run/user/$(id -u)"
+# Ensure XDG_RUNTIME_DIR exists on disk and is writable (required by Wayland socket)
+if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "${XDG_RUNTIME_DIR}" || ! -w "${XDG_RUNTIME_DIR}" ]]; then
+    uid_val="$(id -u)"
+    if [[ -d "/run/user/${uid_val}" && -w "/run/user/${uid_val}" ]]; then
+        XDG_RUNTIME_DIR="/run/user/${uid_val}"
+    else
+        XDG_RUNTIME_DIR="/tmp/voidframe-runtime-${uid_val}"
+        mkdir -p -m 0700 "${XDG_RUNTIME_DIR}"
+    fi
     export XDG_RUNTIME_DIR
 fi
 
@@ -36,5 +45,31 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl --user start pipewire.socket pipewire-pulse.socket wireplumber.service 2>/dev/null || true
 fi
 
-# Launch Cage Wayland kiosk running fullscreen GPU-accelerated Foot directly into TUIOS
-exec cage -s -- foot --config=/etc/xdg/foot/foot.ini -e tuios
+# Session diagnostic log
+STATE_DIR="${HOME:-/tmp}/.local/state/voidframe"
+if ! mkdir -p "${STATE_DIR}" 2>/dev/null; then
+    STATE_DIR="/tmp"
+fi
+SESSION_LOG="${STATE_DIR}/session.log"
+
+# Primary path: Cage Wayland micro-compositor -> fullscreen GPU/software Foot -> TUIOS
+if [[ -d /dev/dri ]] && compgen -G "/dev/dri/card*" >/dev/null; then
+    start_ts="$(date +%s)"
+    set +e
+    cage -s -- foot --config=/etc/xdg/foot/foot.ini -e tuios >> "${SESSION_LOG}" 2>&1
+    cage_rc=$?
+    set -e
+    elapsed=$(( $(date +%s) - start_ts ))
+    if [[ "${cage_rc}" -eq 0 || "${elapsed}" -ge 3 ]]; then
+        exit "${cage_rc}"
+    fi
+    printf "[voidframe] cage exited early (rc=%s after %ss); falling back to direct TTY tuios.\n" "${cage_rc}" "${elapsed}" >> "${SESSION_LOG}"
+fi
+
+# Fallback path (for framebuffer-only VMs without working DRM/KMS): attach TUIOS directly to tty2
+if [[ -r /dev/tty2 && -w /dev/tty2 ]]; then
+    export TERM="${TERM:-linux}"
+    exec tuios </dev/tty2 >/dev/tty2 2>>"${SESSION_LOG}"
+fi
+
+exec tuios

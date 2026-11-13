@@ -85,6 +85,7 @@ ENV CARGO_PROFILE_RELEASE_LTO=thin \
 WORKDIR /build
 COPY LICENSE /build/LICENSE
 COPY config.mk /build/config.mk
+COPY configs/lemurs/config.toml /build/configs/lemurs/config.toml
 COPY docker/build-packages.sh /usr/local/bin/build-packages.sh
 RUN chmod +x /usr/local/bin/build-packages.sh
 

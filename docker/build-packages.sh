@@ -211,13 +211,26 @@ build_lemurs() {
     rm -rf "${stage}"
     mkdir -p "${stage}/usr/bin" "${stage}/etc/lemurs/wayland" "${stage}/etc/lemurs/wms"
 
+    # Compile lemurs natively from source (never musl prebuilt via cargo-binstall)
+    # so it links dynamically against Debian Trixie's glibc and libpam0g (required
+    # for dlopen() of /lib/*/security/pam_unix.so and pam_systemd.so).
     install_or_compile_rust_bin \
         "lemurs" \
         "https://github.com/coastalwhite/lemurs.git" \
         "${LEMURS_VERSION}" \
         "lemurs" \
         "${stage}/usr/bin" \
-        "true"
+        "false"
+
+    if command -v ldd >/dev/null 2>&1; then
+        info "Verifying lemurs dynamic libpam linkage..."
+        ldd "${stage}/usr/bin/lemurs" | grep -q "libpam" || error "lemurs binary is not dynamically linked against libpam!"
+    fi
+
+    if [[ -f /build/configs/lemurs/config.toml ]] && "${stage}/usr/bin/lemurs" --help 2>&1 | grep -q -- "--show-config"; then
+        info "Validating /build/configs/lemurs/config.toml schema with lemurs --show-config..."
+        "${stage}/usr/bin/lemurs" --config /build/configs/lemurs/config.toml --show-config >/dev/null
+    fi
 
     package_deb \
         "lemurs" \

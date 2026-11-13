@@ -158,7 +158,7 @@ configure_pipewire() {
 configure_user_groups() {
     if id -u "${TARGET_USER}" >/dev/null 2>&1; then
         info "Adding user '${TARGET_USER}' to hardware/session groups..."
-        local groups=(audio video render input seat netdev bluetooth sudo)
+        local groups=(audio video render input seat _seatd netdev bluetooth sudo)
         for grp in "${groups[@]}"; do
             if getent group "${grp}" >/dev/null 2>&1; then
                 usermod -aG "${grp}" "${TARGET_USER}"
