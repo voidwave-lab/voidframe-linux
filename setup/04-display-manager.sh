@@ -63,8 +63,10 @@ Conflicts=getty@tty2.service
 
 [Service]
 Type=idle
+ExecStartPre=-/usr/bin/chvt 2
 ExecStart=/usr/bin/lemurs
 StandardInput=tty
+StandardOutput=tty
 TTYPath=/dev/tty2
 TTYReset=yes
 TTYVHangup=yes
@@ -79,6 +81,14 @@ Alias=display-manager.service
 EOF
 
     chmod 0644 /etc/systemd/system/lemurs.service
+
+    # Ensure virtio_gpu DRM module loads early in initramfs on ARM64/x86_64 VMs (UTM / QEMU)
+    if [[ -f /etc/initramfs-tools/modules ]] && ! grep -qx "virtio_gpu" /etc/initramfs-tools/modules; then
+        printf "\nvirtio_gpu\n" >> /etc/initramfs-tools/modules
+        if command -v update-initramfs >/dev/null 2>&1; then
+            update-initramfs -u 2>/dev/null || true
+        fi
+    fi
 
     # Disable getty@tty2 so lemurs owns tty2 cleanly
     systemctl disable getty@tty2.service 2>/dev/null || true

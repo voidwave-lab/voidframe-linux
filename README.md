@@ -238,7 +238,7 @@ qemu-system-aarch64 \
 1. Open **UTM** → **Create a New Virtual Machine** → **Virtualize** (for `arm64` on Apple Silicon) or **Emulate** (for `amd64`).
 2. Select **Linux** and choose `dist/iso/voidframe-0.1.0-debian-trixie-arm64-netinst.iso` as the Boot ISO image.
 3. Set Memory to **4096 MB**, CPU cores to **4**, and Storage to **20 GB**.
-4. In VM Settings → **Display**, select **`virtio-ramfb-gl`** (or `virtio-gpu-gl-pci`) for GPU-accelerated Wayland (`cage` + `foot`).
+4. In VM Settings → **Display**, select **`virtio-ramfb`** or **`virtio-gpu-pci`** (avoid `-gl` display adapters on macOS UTM if you encounter a black screen with a blinking cursor).
 5. Start the VM: the GRUB menu will automatically select **`voidframe 0.1.0 Automated TUI OS Install`** after 5 seconds, install Debian Trixie + all Ratatui `.deb` packages, and reboot into **Lemurs** on `tty2`.
 6. Eject the ISO on reboot, log in as `void` / `voidframe`, and you will land directly in **TUIOS**.
 

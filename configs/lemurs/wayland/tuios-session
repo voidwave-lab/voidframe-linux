@@ -21,6 +21,9 @@ export XDG_CURRENT_DESKTOP="voidframe"
 export COLORTERM="truecolor"
 export EDITOR="${EDITOR:-nvim}"
 export VISUAL="${VISUAL:-nvim}"
+# Allow wlroots/cage fallback to software rendering and cursor on VMs without 3D VirGL (e.g., UTM virtio-ramfb)
+export WLR_RENDERER_ALLOW_SOFTWARE="${WLR_RENDERER_ALLOW_SOFTWARE:-1}"
+export WLR_NO_HARDWARE_CURSORS="${WLR_NO_HARDWARE_CURSORS:-1}"
 
 # Ensure XDG_RUNTIME_DIR is set (provided by pam_systemd)
 if [[ -z "${XDG_RUNTIME_DIR:-}" ]]; then

@@ -209,32 +209,85 @@ patch_boot_configs() {
     local iso_extract_dir="$1"
     local overlay_dir="$2"
 
-    # Extract existing boot configs from SOURCE_ISO so we can patch them cleanly
+    local install_dir="install.amd"
+    local console_args="console=tty0"
+    if [[ "${ARCH}" == "arm64" ]]; then
+        install_dir="install.a64"
+        console_args="console=ttyAMA0,115200 console=tty0"
+    fi
+
+    # Extract existing boot configs and probe whether gtk/initrd.gz exists on SOURCE_ISO
     xorriso -osirrox on -indev "${SOURCE_ISO}" \
-        -extract /boot/grub/grub.cfg "${iso_extract_dir}/grub.cfg" 2>/dev/null || true
+        -extract /boot/grub/grub.cfg "${iso_extract_dir}/grub.cfg" \
+        -extract "/${install_dir}/gtk/initrd.gz" "${iso_extract_dir}/has_gtk_initrd" 2>/dev/null || true
+
+    local has_gtk="false"
+    if [[ -f "${iso_extract_dir}/has_gtk_initrd" ]]; then
+        has_gtk="true"
+        rm -f "${iso_extract_dir}/has_gtk_initrd"
+    fi
 
     # Patch UEFI GRUB config (/boot/grub/grub.cfg)
     if [[ -f "${iso_extract_dir}/grub.cfg" ]]; then
         info "Patching UEFI GRUB configuration (/boot/grub/grub.cfg)..."
         mkdir -p "${overlay_dir}/boot/grub"
-        cat > "${overlay_dir}/boot/grub/grub.cfg" <<EOF
+
+        # 1. Preserve the original Debian GRUB EFI video/font preamble (lines before first menuentry/submenu)
+        #    so efi_gop, font, and gfxterm initialize properly on UEFI / UTM / QEMU.
+        awk '
+            /^(menuentry|submenu)[[:space:]]/ { exit }
+            /^set[[:space:]]+(default|timeout)=/ { next }
+            { print }
+        ' "${iso_extract_dir}/grub.cfg" > "${overlay_dir}/boot/grub/grub.cfg"
+
+        cat >> "${overlay_dir}/boot/grub/grub.cfg" <<EOF
+
 set default=0
 set timeout=5
+EOF
+
+        # 2. Primary automated entry: use gtk/initrd.gz if present on the ISO (matches Debian's default
+        #    entry #0 so DRM/virtio_gpu/framebuffer displays work out-of-the-box in UTM on macOS, while
+        #    still installing a 100% headless minimal TUI system on /target), plus text/serial entry.
+        if [[ "${has_gtk}" == "true" ]]; then
+            cat >> "${overlay_dir}/boot/grub/grub.cfg" <<EOF
 
 menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
     set background_color=black
-    linux    /install.${ARCH/#amd64/amd}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local quiet ---
-    initrd   /install.${ARCH/#amd64/amd}/initrd.gz
+    set gfxpayload=keep
+    insmod gzio
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local video=efifb:auto console=tty0 ---
+    initrd   /${install_dir}/gtk/initrd.gz
+}
+
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Text/Serial Install (${ARCH})" {
+    set background_color=black
+    set gfxpayload=keep
+    insmod gzio
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local ${console_args} ---
+    initrd   /${install_dir}/initrd.gz
 }
 
 EOF
-        # Fix kernel directory name for arm64 (install.a64) vs amd64 (install.amd)
-        if [[ "${ARCH}" == "arm64" ]]; then
-            sed -i.bak 's|/install\.arm64/|/install.a64/|g' "${overlay_dir}/boot/grub/grub.cfg"
-            rm -f "${overlay_dir}/boot/grub/grub.cfg.bak"
+        else
+            cat >> "${overlay_dir}/boot/grub/grub.cfg" <<EOF
+
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
+    set background_color=black
+    set gfxpayload=keep
+    insmod gzio
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local ${console_args} ---
+    initrd   /${install_dir}/initrd.gz
+}
+
+EOF
         fi
-        # Remove any overriding 'set default=' and inject ipv6.disable=1 into fallback menu entries
-        grep -v '^set default=' "${iso_extract_dir}/grub.cfg" \
+
+        # 3. Append original Debian menu entries (from first menuentry/submenu onward) with ipv6.disable=1
+        awk '
+            /^(menuentry|submenu)[[:space:]]/ { found=1 }
+            found { print }
+        ' "${iso_extract_dir}/grub.cfg" \
             | sed 's|/vmlinuz |/vmlinuz ipv6.disable=1 |g' >> "${overlay_dir}/boot/grub/grub.cfg" || true
     fi
 
@@ -280,7 +333,6 @@ build_hybrid_iso() {
         -outdev "${output_iso}"
         -volid "${volid}"
         -compliance joliet_long_names
-        -boot_image any replay
         -map "${overlay_dir}/preseed.cfg" "/preseed.cfg"
         -map "${overlay_dir}/${DISTRO_NAME}" "/${DISTRO_NAME}"
     )
@@ -298,7 +350,7 @@ build_hybrid_iso() {
         xorriso_args+=(-map "${overlay_dir}/isolinux/isolinux.cfg" "/isolinux/isolinux.cfg")
     fi
 
-    xorriso "${xorriso_args[@]}" -commit -eject all
+    xorriso "${xorriso_args[@]}" -boot_image any replay -commit -eject all
 
     (
         cd "${OUTPUT_DIR}"
