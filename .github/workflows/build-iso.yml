@@ -129,8 +129,10 @@ jobs:
           DISTRO: ${{ inputs.distro_name || 'voidframe' }}
         run: |
           cp LICENSE release-bundle/LICENSE
+          cp install.sh release-bundle/install.sh
+          chmod +x release-bundle/install.sh
           cd release-bundle
-          sha256sum ./*.iso ./*.deb SOURCE_MANIFEST.txt LICENSE > SHA256SUMS.txt
+          sha256sum ./*.iso ./*.deb install.sh SOURCE_MANIFEST.txt LICENSE > SHA256SUMS.txt
           ls -lh
           cat SHA256SUMS.txt
 
@@ -140,5 +142,5 @@ jobs:
               --generate-notes
           fi
           gh release upload "${TAG_NAME}" \
-            ./*.iso ./*.iso.sha256 ./*.deb SOURCE_MANIFEST.txt LICENSE SHA256SUMS.txt \
+            ./*.iso ./*.iso.sha256 ./*.deb install.sh SOURCE_MANIFEST.txt LICENSE SHA256SUMS.txt \
             --clobber

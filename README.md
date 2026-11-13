@@ -68,6 +68,7 @@
 │   └── workflows/
 │       ├── build-debs.yml        # Compiles Rust/Go TUIs into .deb packages & publishes to GH Releases
 │       └── build-iso.yml         # Patches official Debian Trixie netinst ISO with preseed + debs
+├── install.sh                    # Standalone downloadable installer & whiptail wizard for existing Debian 13 hosts
 ├── Makefile                      # Targets: build-debs-docker, patch-iso, install, lint, clean
 ├── config.mk                     # Central configuration (DISTRO_NAME, DEBIAN_RELEASE=trixie, ARCH, tool versions)
 ├── docker/
@@ -148,15 +149,37 @@ make patch-iso ARCH=amd64
 # dist/iso/voidframe-0.1.0-debian-trixie-amd64-netinst.iso
 ```
 
-### C. Online Post-Install Mode (On an Existing Fresh Debian Trixie System)
+### C. Standalone Installer & Interactive Wizard (On an Existing Minimal Debian 13 System)
 
-If you already installed a standard minimal Debian 13 (Trixie) system (without a desktop environment):
+If you already have a minimal, headless **Debian 13 (Trixie)** installation (for example, a standard `netinst` VM, laptop, or server without a desktop environment), you can transform it into **Voidframe** using the standalone [`install.sh`](install.sh) wizard:
 
+#### 1. Interactive TUI Wizard (`whiptail`)
 ```bash
-git clone https://github.com/voidframe/voidframe.git
-cd voidframe
-sudo ./setup/bootstrap.sh --online --user "$USER"
-sudo reboot
+curl -fsSL https://raw.githubusercontent.com/voidwave-lab/voidframe-linux/main/install.sh -o install.sh
+sudo bash install.sh
+```
+*(Or piped directly — `install.sh` reads interactive prompts from `/dev/tty`):*
+```bash
+curl -fsSL https://raw.githubusercontent.com/voidwave-lab/voidframe-linux/main/install.sh | sudo bash
+```
+
+The interactive wizard will:
+1. Verify Debian 13 (`trixie`) and CPU architecture (`amd64` or `arm64`).
+2. Prompt for the target operator account (auto-detecting your `sudo` user or creating a new user if needed).
+3. Ask whether to enable the native Voidframe network stack (`iwd` + `systemd-networkd` for `impala`) or preserve your current `/etc/network/interfaces` (useful over SSH or custom VM networks).
+4. Optionally set the system hostname to `voidframe`.
+5. Fetch the repository into `/opt/voidframe`, download the pre-built `.deb` packages from GitHub Releases, configure `lemurs` (`tty2`) -> `cage` -> `foot` -> `tuios`, and prompt to reboot.
+
+#### 2. Unattended / Non-Interactive One-Liner (`--yes`)
+```bash
+curl -fsSL https://raw.githubusercontent.com/voidwave-lab/voidframe-linux/main/install.sh | sudo bash -s -- --yes --user "$USER"
+```
+
+#### 3. Manual Clone & Bootstrap
+```bash
+git clone https://github.com/voidwave-lab/voidframe-linux.git
+cd voidframe-linux
+sudo ./install.sh
 ```
 
 ---

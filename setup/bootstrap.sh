@@ -55,6 +55,7 @@ load_config_mk
 # --- CLI Argument Parsing ---
 BOOTSTRAP_MODE="${BOOTSTRAP_MODE:-auto}" # auto | online | offline
 DEBS_SOURCE_DIR="${DEBS_SOURCE_DIR:-}"
+KEEP_EXISTING_NETWORK="${KEEP_EXISTING_NETWORK:-false}"
 
 usage() {
     cat <<EOF
@@ -66,6 +67,7 @@ Options:
   --debs-dir <path>      Directory containing pre-built .deb packages
   --user <username>      Target non-root user to configure (default: ${TARGET_USER:-void})
   --distro <name>        Distro name override (default: ${DISTRO_NAME:-voidframe})
+  --keep-network         Preserve existing /etc/network/interfaces configuration
   -h, --help             Show this help message
 EOF
 }
@@ -92,6 +94,10 @@ while [[ $# -gt 0 ]]; do
             DISTRO_NAME="$2"
             shift 2
             ;;
+        --keep-network)
+            KEEP_EXISTING_NETWORK="true"
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -106,9 +112,10 @@ export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 export DISTRO_VERSION="${DISTRO_VERSION:-0.1.0}"
 export DEBIAN_RELEASE="${DEBIAN_RELEASE:-trixie}"
 export ARCH="${ARCH:-$(dpkg --print-architecture)}"
+export KEEP_EXISTING_NETWORK
 
 # Auto-detect GitHub repository slug from git remote if not overridden
-if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; then
+if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" || "${GITHUB_REPO}" == "voidwave-lab/voidframe-linux" ]]; then
     if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         remote_url="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || true)"
         if [[ "${remote_url}" =~ github\.com[:/]([^/]+/[^/.]+)(\.git)?$ ]]; then
@@ -116,7 +123,7 @@ if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; the
         fi
     fi
 fi
-export GITHUB_REPO="${GITHUB_REPO:-voidframe/voidframe}"
+export GITHUB_REPO="${GITHUB_REPO:-voidwave-lab/voidframe-linux}"
 export NERD_FONT_VERSION="${NERD_FONT_VERSION:-v3.3.0}"
 export NERD_FONT_NAME="${NERD_FONT_NAME:-JetBrainsMono}"
 export REPO_ROOT

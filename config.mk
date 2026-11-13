@@ -10,7 +10,7 @@ DISTRO_NAME ?= voidframe
 DISTRO_VERSION ?= 0.1.0
 DISTRO_LICENSE ?= GPL-3.0-or-later
 DISTRO_MAINTAINER ?= Voidframe Maintainers <maintainers@voidframe.local>
-GITHUB_REPO ?= voidframe/voidframe
+GITHUB_REPO ?= voidwave-lab/voidframe-linux
 
 # Target Debian Base
 DEBIAN_RELEASE ?= trixie

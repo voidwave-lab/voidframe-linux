@@ -18,6 +18,7 @@ set -euo pipefail
 
 DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 TARGET_USER="${TARGET_USER:-void}"
+KEEP_EXISTING_NETWORK="${KEEP_EXISTING_NETWORK:-false}"
 
 info()  { printf "\033[1;36m[%s][03-net-audio]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
 warn()  { printf "\033[1;33m[%s][03-net-audio]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; }
@@ -165,11 +166,15 @@ configure_user_groups() {
 }
 
 main() {
-    configure_iwd_and_networkd
+    if [[ "${KEEP_EXISTING_NETWORK}" == "true" ]]; then
+        info "KEEP_EXISTING_NETWORK=true: preserving existing network configuration."
+    else
+        configure_iwd_and_networkd
+    fi
     configure_bluetooth
     configure_pipewire
     configure_user_groups
-    info "Networking (iwd/systemd-networkd), Bluetooth (bluez), and Audio (PipeWire) configured."
+    info "Networking, Bluetooth (bluez), and Audio (PipeWire) configured."
 }
 
 main "$@"

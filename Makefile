@@ -71,18 +71,18 @@ patch-iso: ## Patch official Debian Trixie netinst ISO with preseed, setup scrip
 		--debs-dir "$(DEBS_DIR)" \
 		--output-dir "$(ISO_DIR)"
 
-install: ## Run bootstrap provisioning on the current Debian Trixie host (requires root)
-	./setup/bootstrap.sh
+install: ## Run interactive/automated installer on the current Debian Trixie host (requires root)
+	./install.sh
 
 lint: ## Validate shell scripts (bash -n / shellcheck) and configuration syntax
 	@echo "==> Checking bash syntax across all scripts..."
-	@for script in docker/build-packages.sh iso/patch-netinst.sh setup/*.sh configs/lemurs/wayland/tuios-session; do \
+	@for script in install.sh docker/build-packages.sh iso/patch-netinst.sh setup/*.sh configs/lemurs/wayland/tuios-session; do \
 		echo "  [syntax] $$script"; \
 		bash -n "$$script"; \
 	done
 	@if command -v shellcheck >/dev/null 2>&1; then \
 		echo "==> Running shellcheck..."; \
-		shellcheck -x docker/build-packages.sh iso/patch-netinst.sh setup/*.sh configs/lemurs/wayland/tuios-session; \
+		shellcheck -x install.sh docker/build-packages.sh iso/patch-netinst.sh setup/*.sh configs/lemurs/wayland/tuios-session; \
 	else \
 		echo "==> shellcheck not installed; skipped static lint (bash -n passed)."; \
 	fi

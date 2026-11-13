@@ -22,7 +22,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
-if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; then
+if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" || "${GITHUB_REPO}" == "voidwave-lab/voidframe-linux" ]]; then
     if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         remote_url="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || true)"
         if [[ "${remote_url}" =~ github\.com[:/]([^/]+/[^/.]+)(\.git)?$ ]]; then
@@ -30,7 +30,7 @@ if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" ]]; the
         fi
     fi
 fi
-GITHUB_REPO="${GITHUB_REPO:-voidframe/voidframe}"
+GITHUB_REPO="${GITHUB_REPO:-voidwave-lab/voidframe-linux}"
 BOOTSTRAP_MODE="${BOOTSTRAP_MODE:-auto}"
 DEBS_SOURCE_DIR="${DEBS_SOURCE_DIR:-}"
 
@@ -102,17 +102,25 @@ download_debs_from_github() {
     mkdir -p "${dest_dir}"
 
     info "No local .deb cache found; querying GitHub Releases (${GITHUB_REPO}) for ${ARCH} packages..."
-    local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
-    local release_json
-    if ! release_json="$(curl -fsSL "${api_url}")"; then
-        error "Failed to query GitHub Releases at ${api_url}. Build .debs locally with 'make build-debs-docker' or provide --debs-dir."
+    local api_latest="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+    local api_all="https://api.github.com/repos/${GITHUB_REPO}/releases"
+    local release_json=""
+    local urls=""
+
+    if release_json="$(curl -fsSL "${api_latest}" 2>/dev/null)"; then
+        urls="$(printf "%s" "${release_json}" | jq -r ".assets[]? | select(.name | endswith(\"_${ARCH}.deb\")) | .browser_download_url")"
     fi
 
-    local urls
-    urls="$(printf "%s" "${release_json}" | jq -r ".assets[] | select(.name | endswith(\"_${ARCH}.deb\")) | .browser_download_url")"
+    if [[ -z "${urls}" ]]; then
+        if release_json="$(curl -fsSL "${api_all}" 2>/dev/null)"; then
+            urls="$(printf "%s" "${release_json}" | jq -r ".[0].assets[]? | select(.name | endswith(\"_${ARCH}.deb\")) | .browser_download_url")"
+        else
+            error "Failed to query GitHub Releases at ${api_all}. Build .debs locally with 'make build-debs-docker' or provide --debs-dir."
+        fi
+    fi
 
     if [[ -z "${urls}" ]]; then
-        error "No _${ARCH}.deb assets found in latest release of ${GITHUB_REPO}."
+        error "No _${ARCH}.deb assets found in GitHub Releases of ${GITHUB_REPO}."
     fi
 
     while IFS= read -r url; do
