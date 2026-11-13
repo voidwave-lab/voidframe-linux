@@ -21,12 +21,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DISTRO_NAME="${DISTRO_NAME:-voidframe}"
+export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 TARGET_USER="${TARGET_USER:-void}"
 
-info()  { printf "\033[1;36m[%s][05-dotfiles]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
-warn()  { printf "\033[1;33m[%s][05-dotfiles]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][05-dotfiles]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; exit 1; }
+# shellcheck source=setup/ui.sh
+. "${SCRIPT_DIR}/ui.sh"
+
+info()  { ui_info "$*"; }
+warn()  { ui_warn "$*"; }
+error() { ui_error "$*"; }
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     error "This script must be run as root."
@@ -93,16 +96,17 @@ EOF
 }
 
 main() {
+    ui_progress 95 "Installing system-wide XDG Foot config & shell helpers..."
     install_system_xdg_configs
 
-    # Populate /etc/skel for any future users
+    ui_progress 97 "Populating /etc/skel with Voidframe dotfiles..."
     deploy_configs_to_root "/etc/skel"
 
-    # Populate target user's home directory if present
     if id -u "${TARGET_USER}" >/dev/null 2>&1; then
         local user_home
         user_home="$(getent passwd "${TARGET_USER}" | cut -d: -f6)"
         if [[ -n "${user_home}" && -d "${user_home}" ]]; then
+            ui_progress 99 "Deploying TUIOS, Foot, Yazi & Bottom configs for '${TARGET_USER}'..."
             deploy_configs_to_root "${user_home}"
             chown -R "${TARGET_USER}:${TARGET_USER}" "${user_home}/.config"
         fi
@@ -110,7 +114,7 @@ main() {
         warn "User '${TARGET_USER}' not found; only /etc/skel and /etc/xdg were populated."
     fi
 
-    info "Dotfiles and system XDG configs deployed."
+    ui_ok "Dotfiles and system XDG configs deployed."
 }
 
 main "$@"

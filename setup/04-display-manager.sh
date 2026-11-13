@@ -18,11 +18,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DISTRO_NAME="${DISTRO_NAME:-voidframe}"
+export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 
-info()  { printf "\033[1;36m[%s][04-dm]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
-warn()  { printf "\033[1;33m[%s][04-dm]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][04-dm]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; exit 1; }
+# shellcheck source=setup/ui.sh
+. "${SCRIPT_DIR}/ui.sh"
+
+info()  { ui_info "$*"; }
+warn()  { ui_warn "$*"; }
+error() { ui_error "$*"; }
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     error "This script must be run as root."
@@ -103,10 +106,13 @@ EOF
 }
 
 main() {
+    ui_progress 86 "Installing PAM session rules (/etc/pam.d/lemurs)..."
     install_pam_config
+    ui_progress 88 "Installing Lemurs TUI login config & Cage Wayland session..."
     install_lemurs_configs
+    ui_progress 91 "Enabling lemurs.service (tty2), seatd, and virtio_gpu DRM..."
     install_systemd_service
-    info "Lemurs display manager and Wayland kiosk session configured on tty2."
+    ui_ok "Lemurs display manager and Cage Wayland kiosk configured on tty2."
 }
 
 main "$@"

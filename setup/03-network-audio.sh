@@ -16,13 +16,17 @@ set -euo pipefail
 # - Configures PipeWire + WirePlumber user services for wiremix
 # ==============================================================================
 
-DISTRO_NAME="${DISTRO_NAME:-voidframe}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 TARGET_USER="${TARGET_USER:-void}"
 KEEP_EXISTING_NETWORK="${KEEP_EXISTING_NETWORK:-false}"
 
-info()  { printf "\033[1;36m[%s][03-net-audio]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
-warn()  { printf "\033[1;33m[%s][03-net-audio]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][03-net-audio]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; exit 1; }
+# shellcheck source=setup/ui.sh
+. "${SCRIPT_DIR}/ui.sh"
+
+info()  { ui_info "$*"; }
+warn()  { ui_warn "$*"; }
+error() { ui_error "$*"; }
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     error "This script must be run as root."
@@ -167,14 +171,21 @@ configure_user_groups() {
 
 main() {
     if [[ "${KEEP_EXISTING_NETWORK}" == "true" ]]; then
-        info "KEEP_EXISTING_NETWORK=true: preserving existing network configuration."
+        ui_progress 73 "Preserving existing network configuration (KEEP_EXISTING_NETWORK=true)..."
     else
+        ui_progress 73 "Configuring iwd Wi-Fi daemon & systemd-networkd profiles..."
         configure_iwd_and_networkd
+        ui_ok "iwd + systemd-networkd enabled."
     fi
+    ui_progress 77 "Configuring BlueZ Bluetooth daemon for bluetui..."
     configure_bluetooth
+    ui_ok "BlueZ configured."
+    ui_progress 80 "Configuring PipeWire & WirePlumber user sockets for wiremix..."
     configure_pipewire
+    ui_ok "PipeWire + WirePlumber user services enabled."
+    ui_progress 82 "Assigning operator user '${TARGET_USER}' to hardware groups..."
     configure_user_groups
-    info "Networking, Bluetooth (bluez), and Audio (PipeWire) configured."
+    ui_ok "Networking, Bluetooth, and PipeWire audio configured."
 }
 
 main "$@"

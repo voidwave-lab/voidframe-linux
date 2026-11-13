@@ -20,7 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-DISTRO_NAME="${DISTRO_NAME:-voidframe}"
+export DISTRO_NAME="${DISTRO_NAME:-voidframe}"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
 if [[ -z "${GITHUB_REPO:-}" || "${GITHUB_REPO}" == "voidframe/voidframe" || "${GITHUB_REPO}" == "voidwave-lab/voidframe-linux" ]]; then
     if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -34,9 +34,12 @@ GITHUB_REPO="${GITHUB_REPO:-voidwave-lab/voidframe-linux}"
 BOOTSTRAP_MODE="${BOOTSTRAP_MODE:-auto}"
 DEBS_SOURCE_DIR="${DEBS_SOURCE_DIR:-}"
 
-info()  { printf "\033[1;36m[%s][02-tuis]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
-warn()  { printf "\033[1;33m[%s][02-tuis]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][02-tuis]\033[0m %s\n" "${DISTRO_NAME}" "$*" >&2; exit 1; }
+# shellcheck source=setup/ui.sh
+. "${SCRIPT_DIR}/ui.sh"
+
+info()  { ui_info "$*"; }
+warn()  { ui_warn "$*"; }
+error() { ui_error "$*"; }
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     error "This script must be run as root."
@@ -123,11 +126,17 @@ download_debs_from_github() {
         error "No _${ARCH}.deb assets found in GitHub Releases of ${GITHUB_REPO}."
     fi
 
+    local dl_idx=0
     while IFS= read -r url; do
         [[ -z "${url}" ]] && continue
         local fname
         fname="$(basename "${url}")"
-        info "Downloading ${fname}..."
+        dl_idx=$(( dl_idx + 1 ))
+        local dl_pct=$(( 48 + dl_idx ))
+        if (( dl_pct > 57 )); then
+            dl_pct=57
+        fi
+        ui_progress "${dl_pct}" "Downloading ${fname}..." >&2
         curl -fsSL --retry 3 -o "${dest_dir}/${fname}" "${url}"
     done <<< "${urls}"
 
@@ -136,7 +145,7 @@ download_debs_from_github() {
 
 install_debs_from_dir() {
     local deb_dir="$1"
-    info "Installing TUI .deb packages from ${deb_dir}..."
+    ui_progress 58 "Installing pre-built Ratatui & TUIOS .deb packages from ${deb_dir}..."
 
     local deb_files=()
     while IFS= read -r -d '' f; do
@@ -154,20 +163,22 @@ install_debs_from_dir() {
     fi
 
     # Install via apt-get or dpkg with dependency resolution
-    if ! apt-get install -y --no-install-recommends "${deb_files[@]}"; then
+    local apt_log="/var/log/${DISTRO_NAME}-tuis.log"
+    if ! apt-get install -y --no-install-recommends "${deb_files[@]}" >> "${apt_log}" 2>&1; then
         warn "apt-get direct local install returned non-zero; running dpkg -i + apt-get -f install..."
-        dpkg -i "${deb_files[@]}" || apt-get install -f -y --no-install-recommends
+        dpkg -i "${deb_files[@]}" >> "${apt_log}" 2>&1 || apt-get install -f -y --no-install-recommends >> "${apt_log}" 2>&1
     fi
+    ui_ok "Installed ${#deb_files[@]} TUI .deb packages."
 }
 
 verify_installed_binaries() {
-    info "Verifying installed TUI binaries..."
+    ui_progress 65 "Verifying installed Ratatui & TUIOS binaries..."
     local missing=0
     for bin in "${EXPECTED_BINARIES[@]}"; do
         if command -v "${bin}" >/dev/null 2>&1; then
-            info "  [OK] ${bin} -> $(command -v "${bin}")"
+            ui_ok "${bin} -> $(command -v "${bin}")"
         else
-            warn "  [MISSING] ${bin} not found in PATH"
+            warn "[MISSING] ${bin} not found in PATH"
             missing=$((missing + 1))
         fi
     done
@@ -175,6 +186,7 @@ verify_installed_binaries() {
     if [[ "${missing}" -gt 0 ]]; then
         error "${missing} required TUI binaries are missing after .deb installation."
     fi
+    ui_progress 69 "All ${#EXPECTED_BINARIES[@]} TUI binaries verified."
 }
 
 main() {

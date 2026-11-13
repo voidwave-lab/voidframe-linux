@@ -76,6 +76,8 @@
 │   └── build-packages.sh         # Inside-container script that outputs clean .deb packages into /dist/debs
 ├── setup/
 │   ├── bootstrap.sh              # Main entrypoint for post-install or preseed late_command
+│   ├── ui.sh                     # Shared ANSI stage cards, visual progress bars & d-i progress hooks
+│   ├── di-late-runner.sh         # Debian-Installer late_command bridge (db_progress + live tty3 UI)
 │   ├── 01-base-packages.sh       # Installs apt dependencies (pipewire, wireplumber, iwd, bluez, cage, foot, fonts, cli tools)
 │   ├── 02-install-tuis.sh        # Installs the pre-built .deb packages from local cache or GitHub Releases
 │   ├── 03-network-audio.sh       # Replaces wpa_supplicant with iwd + systemd-networkd (for impala), enables bluez & pipewire
@@ -239,7 +241,7 @@ qemu-system-aarch64 \
 2. Select **Linux** and choose `dist/iso/voidframe-0.1.0-debian-trixie-arm64-netinst.iso` as the Boot ISO image.
 3. Set Memory to **4096 MB**, CPU cores to **4**, and Storage to **20 GB**.
 4. In VM Settings → **Display**, select **`virtio-ramfb`** or **`virtio-gpu-pci`** (avoid `-gl` display adapters on macOS UTM if you encounter a black screen with a blinking cursor).
-5. Start the VM: the GRUB menu will automatically select **`voidframe 0.1.0 Automated TUI OS Install`** after 5 seconds, install Debian Trixie + all Ratatui `.deb` packages, and reboot into **Lemurs** on `tty2`.
+5. Start the VM: in the GRUB menu, **`voidframe 0.1.0 Automated Install - Graphical Progress`** (selected automatically after 5s) or **`Automated Install - Console/TUI Progress`** displays live installation progress bars across both the Debian base system install and all 5 Voidframe provisioning stages (press `Alt+F3` / `Ctrl+Alt+F3` at any time during Graphical mode to view the live Voidframe ANSI console; in Console/TUI mode it switches automatically to `tty3` during Voidframe setup), and reboots into **Lemurs** on `tty2`.
 6. Eject the ISO on reboot, log in as `void` / `voidframe`, and you will land directly in **TUIOS**.
 
 ---

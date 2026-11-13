@@ -21,10 +21,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# shellcheck source=setup/ui.sh
+. "${SCRIPT_DIR}/ui.sh"
+
 # --- Logging Helpers ---
-info()  { printf "\033[1;36m[%s][INFO]\033[0m  %s\n" "${DISTRO_NAME:-voidframe}" "$*"; }
-warn()  { printf "\033[1;33m[%s][WARN]\033[0m  %s\n" "${DISTRO_NAME:-voidframe}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][ERROR]\033[0m %s\n" "${DISTRO_NAME:-voidframe}" "$*" >&2; exit 1; }
+info()  { ui_info "$*"; }
+warn()  { ui_warn "$*"; }
+error() { ui_error "$*"; }
 
 # --- Privilege Check ---
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -167,14 +170,14 @@ fi
 export BOOTSTRAP_MODE
 export DEBS_SOURCE_DIR
 
-info "=================================================================="
-info "Provisioning ${DISTRO_NAME} v${DISTRO_VERSION} on Debian ${DEBIAN_RELEASE} (${ARCH})"
-info "Mode:        ${BOOTSTRAP_MODE}"
-info "Target User: ${TARGET_USER}"
-[[ -n "${DEBS_SOURCE_DIR}" ]] && info "Debs Source: ${DEBS_SOURCE_DIR}"
-info "=================================================================="
+BOOT_START_TS="$(date +%s)"
 
-STEPS=(
+ui_banner "${DISTRO_VERSION}" "${DEBIAN_RELEASE}" "${ARCH}" "${BOOTSTRAP_MODE}" "${TARGET_USER}"
+if [[ -n "${DEBS_SOURCE_DIR}" ]]; then
+    ui_info "Offline/local .deb directory: ${DEBS_SOURCE_DIR}"
+fi
+
+STAGE_SCRIPTS=(
     "01-base-packages.sh"
     "02-install-tuis.sh"
     "03-network-audio.sh"
@@ -182,17 +185,34 @@ STEPS=(
     "05-dotfiles.sh"
 )
 
-for step in "${STEPS[@]}"; do
+STAGE_TITLES=(
+    "Base Packages, Wayland Kiosk & Nerd Fonts"
+    "Pre-Built Ratatui & TUIOS Suite (.deb)"
+    "Network (iwd), Bluetooth (BlueZ) & PipeWire Audio"
+    "Lemurs TUI Display Manager (tty2) & Cage Session"
+    "Unified Voidframe Dotfiles & Shell Environment"
+)
+
+STAGE_PCTS=(10 45 70 84 93)
+
+total_stages="${#STAGE_SCRIPTS[@]}"
+for (( idx = 0; idx < total_stages; idx++ )); do
+    step="${STAGE_SCRIPTS[$idx]}"
+    title="${STAGE_TITLES[$idx]}"
+    pct="${STAGE_PCTS[$idx]}"
+    stage_num=$(( idx + 1 ))
     step_path="${SCRIPT_DIR}/${step}"
+
     if [[ ! -f "${step_path}" ]]; then
         error "Missing setup script: ${step_path}"
     fi
-    info ">>> Running ${step} ..."
+
+    ui_stage "${stage_num}" "${total_stages}" "${pct}" "${title}"
+    stage_start="$(date +%s)"
     bash "${step_path}"
-    info "<<< Completed ${step}"
+    stage_elapsed=$(( $(date +%s) - stage_start ))
+    ui_ok "Stage ${stage_num}/${total_stages} (${step}) completed in ${stage_elapsed}s"
 done
 
-info "=================================================================="
-info "${DISTRO_NAME} provisioning completed successfully!"
-info "Reboot the system to launch Lemurs on tty2 -> Cage -> Foot -> TUIOS."
-info "=================================================================="
+TOTAL_ELAPSED=$(( $(date +%s) - BOOT_START_TS ))
+ui_summary "${TOTAL_ELAPSED}"

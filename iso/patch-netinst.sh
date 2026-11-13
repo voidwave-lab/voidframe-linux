@@ -210,10 +210,10 @@ patch_boot_configs() {
     local overlay_dir="$2"
 
     local install_dir="install.amd"
-    local console_args="console=tty0"
+    local serial_console="ttyS0,115200"
     if [[ "${ARCH}" == "arm64" ]]; then
         install_dir="install.a64"
-        console_args="console=ttyAMA0,115200 console=tty0"
+        serial_console="ttyAMA0,115200"
     fi
 
     # Extract existing boot configs and probe whether gtk/initrd.gz exists on SOURCE_ISO
@@ -246,25 +246,30 @@ set default=0
 set timeout=5
 EOF
 
-        # 2. Primary automated entry: use gtk/initrd.gz if present on the ISO (matches Debian's default
-        #    entry #0 so DRM/virtio_gpu/framebuffer displays work out-of-the-box in UTM on macOS, while
-        #    still installing a 100% headless minimal TUI system on /target), plus text/serial entry.
+        # 2. Automated menu entries with visible progress bars:
+        #    - Entry 0 (Graphical Progress): uses gtk/initrd.gz WITHOUT 'console=' or 'gfxpayload=keep'
+        #      so it matches Debian 13's official 'Graphical install' entry (Xorg/GTK progress bar).
+        #    - Entry 1 (Console/TUI Progress): forces DEBIAN_FRONTEND=newt on console=tty0 (no ttyAMA0)
+        #      using gtk/initrd.gz (for virtio_gpu/fbdev drivers) + automatic tty3 live stage view.
+        #    - Entry 2 (Serial Console): dedicated headless UART entry (ttyAMA0 / ttyS0).
         if [[ "${has_gtk}" == "true" ]]; then
             cat >> "${overlay_dir}/boot/grub/grub.cfg" <<EOF
 
-menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - Graphical Progress (${ARCH})" {
     set background_color=black
-    set gfxpayload=keep
-    insmod gzio
-    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local video=efifb:auto console=tty0 ---
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local ---
     initrd   /${install_dir}/gtk/initrd.gz
 }
 
-menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Text/Serial Install (${ARCH})" {
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - Console/TUI Progress (${ARCH})" {
     set background_color=black
-    set gfxpayload=keep
-    insmod gzio
-    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local ${console_args} ---
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical DEBIAN_FRONTEND=newt file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local console=tty0 ---
+    initrd   /${install_dir}/gtk/initrd.gz
+}
+
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - Serial Console (${ARCH})" {
+    set background_color=black
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical DEBIAN_FRONTEND=text file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local console=${serial_console} ---
     initrd   /${install_dir}/initrd.gz
 }
 
@@ -272,11 +277,15 @@ EOF
         else
             cat >> "${overlay_dir}/boot/grub/grub.cfg" <<EOF
 
-menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install (${ARCH})" {
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - Console/TUI Progress (${ARCH})" {
     set background_color=black
-    set gfxpayload=keep
-    insmod gzio
-    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local ${console_args} ---
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical DEBIAN_FRONTEND=newt file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local console=tty0 ---
+    initrd   /${install_dir}/initrd.gz
+}
+
+menuentry "${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - Serial Console (${ARCH})" {
+    set background_color=black
+    linux    /${install_dir}/vmlinuz ipv6.disable=1 auto=true priority=critical DEBIAN_FRONTEND=text file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local console=${serial_console} ---
     initrd   /${install_dir}/initrd.gz
 }
 
@@ -300,10 +309,10 @@ EOF
                 cat > "${overlay_dir}/isolinux/txt.cfg" <<EOF
 default ${DISTRO_NAME}
 label ${DISTRO_NAME}
-    menu label ^${DISTRO_NAME} ${DISTRO_VERSION} Automated TUI OS Install
+    menu label ^${DISTRO_NAME} ${DISTRO_VERSION} Automated Install - TUI Progress
     menu default
     kernel /install.amd/vmlinuz
-    append vga=788 initrd=/install.amd/initrd.gz ipv6.disable=1 auto=true priority=critical file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local --- quiet
+    append vga=788 initrd=/install.amd/initrd.gz ipv6.disable=1 auto=true priority=critical DEBIAN_FRONTEND=newt file=/cdrom/preseed.cfg preseed/file=/cdrom/preseed.cfg hostname=${DISTRO_NAME} domain=local console=tty1 ---
 EOF
                 grep -v '^default ' "${iso_extract_dir}/txt.cfg" \
                     | sed 's/menu default//g; s/append /append ipv6.disable=1 /g' >> "${overlay_dir}/isolinux/txt.cfg" || true

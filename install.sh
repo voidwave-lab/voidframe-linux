@@ -41,10 +41,31 @@ ASSUME_YES="false"
 USE_TUI="true"
 AUTO_REBOOT="ask" # ask | true | false
 
-# --- Logging Helpers ---
-info()  { printf "\033[1;36m[%s][INSTALL]\033[0m %s\n" "${DISTRO_NAME}" "$*"; }
-warn()  { printf "\033[1;33m[%s][WARN]\033[0m    %s\n" "${DISTRO_NAME}" "$*" >&2; }
-error() { printf "\033[1;31m[%s][ERROR]\033[0m   %s\n" "${DISTRO_NAME}" "$*" >&2; exit 1; }
+# --- Logging & Visual Progress Helpers ---
+info()  { printf "  \033[1;36m[%s]\033[0m  %s\n" "${DISTRO_NAME}" "$*"; }
+warn()  { printf "  \033[1;33m[WARN]\033[0m  %s\n" "$*" >&2; }
+error() { printf "  \033[1;31m[ERROR]\033[0m %s\n" "$*" >&2; exit 1; }
+
+installer_progress() {
+    local pct="$1"
+    local label="$2"
+    local width=24
+    local filled=$(( (pct * width) / 100 ))
+    local empty=$(( width - filled ))
+    local fill_ch="#"
+    local empty_ch="-"
+    local arrow_ch=">"
+    if [[ "${LC_ALL:-${LANG:-}}" =~ [Uu][Tt][Ff]-?8 ]] && [[ "${TERM:-}" != "linux" ]]; then
+        fill_ch="█"
+        empty_ch="░"
+        arrow_ch="▸"
+    fi
+    local bar=""
+    local i
+    for (( i = 0; i < filled; i++ )); do bar+="${fill_ch}"; done
+    for (( i = 0; i < empty; i++ )); do bar+="${empty_ch}"; done
+    printf "  \033[1;36m[%s]\033[0m \033[1;37m%3d%%\033[0m  \033[1;35m%s\033[0m %s\n" "${bar}" "${pct}" "${arrow_ch}" "${label}"
+}
 
 usage() {
     cat <<EOF
@@ -562,11 +583,25 @@ finish_installation() {
 
 main() {
     ensure_root
+    local distro_upper
+    distro_upper="$(printf "%s" "${DISTRO_NAME}" | tr '[:lower:]' '[:upper:]')"
+    local b_tl="+" b_tr="+" b_bl="+" b_br="+" b_v="|" b_line="------------------------------------------------------------------"
+    if [[ "${LC_ALL:-${LANG:-}}" =~ [Uu][Tt][Ff]-?8 ]] && [[ "${TERM:-}" != "linux" ]]; then
+        b_tl="┌"; b_tr="┐"; b_bl="└"; b_br="┘"; b_v="│"
+        b_line="──────────────────────────────────────────────────────────────────"
+    fi
+    printf "\n\033[1;36m%s%s%s\033[0m\n" "${b_tl}" "${b_line}" "${b_tr}"
+    printf "\033[1;36m%s\033[0m  \033[1;37m%-62s\033[0m  \033[1;36m%s\033[0m\n" "${b_v}" "${distro_upper} v${DISTRO_VERSION} -- Standalone Installer & Wizard" "${b_v}"
+    printf "\033[1;36m%s%s%s\033[0m\n\n" "${b_bl}" "${b_line}" "${b_br}"
+    installer_progress 2 "Verifying Debian 13 (Trixie) environment & CPU architecture..."
     verify_environment
+    installer_progress 4 "Checking & installing minimal bootstrap prerequisites..."
     install_bootstrap_prereqs
     run_wizard
+    installer_progress 6 "Ensuring target operator account '${TARGET_USER}'..."
     ensure_target_user
     apply_hostname
+    installer_progress 8 "Staging Voidframe repository in ${INSTALL_DIR}..."
     prepare_repository
     run_bootstrap
     finish_installation
