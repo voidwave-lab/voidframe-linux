@@ -35,7 +35,8 @@ if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "${XDG_RUNTIME_DIR}" || ! -w "${XDG_RUNT
         XDG_RUNTIME_DIR="/run/user/${uid_val}"
     else
         XDG_RUNTIME_DIR="/tmp/voidframe-runtime-${uid_val}"
-        mkdir -p -m 0700 "${XDG_RUNTIME_DIR}"
+        mkdir -p "${XDG_RUNTIME_DIR}"
+        chmod 0700 "${XDG_RUNTIME_DIR}"
     fi
     export XDG_RUNTIME_DIR
 fi
